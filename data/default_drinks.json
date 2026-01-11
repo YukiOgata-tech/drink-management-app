@@ -1,0 +1,250 @@
+[
+  {
+    "id": "beer_draft_medium",
+    "category": "beer",
+    "name": "生ビール(中ジョッキ)",
+    "ml": 435,
+    "abv": 5,
+    "pureAlcoholG": 17.2,
+    "emoji": "🍺",
+    "notes": "店舗により350-500mlの幅あり"
+  },
+  {
+    "id": "beer_draft_large",
+    "category": "beer",
+    "name": "生ビール(大ジョッキ)",
+    "ml": 700,
+    "abv": 5,
+    "pureAlcoholG": 27.6,
+    "emoji": "🍺",
+    "notes": "店舗により600-800mlの幅あり"
+  },
+  {
+    "id": "beer_bottle",
+    "category": "beer",
+    "name": "瓶ビール",
+    "ml": 500,
+    "abv": 5,
+    "pureAlcoholG": 19.7,
+    "emoji": "🍺"
+  },
+  {
+    "id": "highball_regular",
+    "category": "highball",
+    "name": "ハイボール",
+    "ml": 350,
+    "abv": 7,
+    "pureAlcoholG": 19.3,
+    "emoji": "🥃",
+    "notes": "ウイスキー量により度数変動あり"
+  },
+  {
+    "id": "highball_mega",
+    "category": "highball",
+    "name": "メガハイボール",
+    "ml": 700,
+    "abv": 7,
+    "pureAlcoholG": 38.6,
+    "emoji": "🥃"
+  },
+  {
+    "id": "chuhai_lemon",
+    "category": "chuhai_sour",
+    "name": "レモンサワー",
+    "ml": 350,
+    "abv": 5,
+    "pureAlcoholG": 13.8,
+    "emoji": "🍋"
+  },
+  {
+    "id": "chuhai_oolong",
+    "category": "chuhai_sour",
+    "name": "ウーロンハイ",
+    "ml": 350,
+    "abv": 5,
+    "pureAlcoholG": 13.8,
+    "emoji": "🍵"
+  },
+  {
+    "id": "chuhai_grapefruit",
+    "category": "chuhai_sour",
+    "name": "グレープフルーツサワー",
+    "ml": 350,
+    "abv": 5,
+    "pureAlcoholG": 13.8,
+    "emoji": "🍊"
+  },
+  {
+    "id": "shochu_rock",
+    "category": "shochu",
+    "name": "焼酎ロック",
+    "ml": 90,
+    "abv": 25,
+    "pureAlcoholG": 17.8,
+    "emoji": "🧊"
+  },
+  {
+    "id": "shochu_mizuwari",
+    "category": "shochu",
+    "name": "焼酎水割り",
+    "ml": 200,
+    "abv": 12,
+    "pureAlcoholG": 18.9,
+    "emoji": "💧",
+    "notes": "割合により度数変動"
+  },
+  {
+    "id": "sake_1go",
+    "category": "sake",
+    "name": "日本酒(1合)",
+    "ml": 180,
+    "abv": 15,
+    "pureAlcoholG": 21.3,
+    "emoji": "🍶"
+  },
+  {
+    "id": "sake_glass",
+    "category": "sake",
+    "name": "日本酒(グラス)",
+    "ml": 90,
+    "abv": 15,
+    "pureAlcoholG": 10.6,
+    "emoji": "🍶"
+  },
+  {
+    "id": "wine_glass_red",
+    "category": "wine",
+    "name": "赤ワイン(グラス)",
+    "ml": 120,
+    "abv": 12,
+    "pureAlcoholG": 11.3,
+    "emoji": "🍷"
+  },
+  {
+    "id": "wine_glass_white",
+    "category": "wine",
+    "name": "白ワイン(グラス)",
+    "ml": 120,
+    "abv": 11,
+    "pureAlcoholG": 10.4,
+    "emoji": "🍷"
+  },
+  {
+    "id": "wine_sparkling",
+    "category": "wine",
+    "name": "スパークリングワイン(グラス)",
+    "ml": 120,
+    "abv": 11,
+    "pureAlcoholG": 10.4,
+    "emoji": "🥂"
+  },
+  {
+    "id": "umeshu_rock",
+    "category": "fruit_liquor",
+    "name": "梅酒ロック",
+    "ml": 90,
+    "abv": 12,
+    "pureAlcoholG": 8.5,
+    "emoji": "🍑"
+  },
+  {
+    "id": "umeshu_soda",
+    "category": "fruit_liquor",
+    "name": "梅酒ソーダ",
+    "ml": 200,
+    "abv": 6,
+    "pureAlcoholG": 9.5,
+    "emoji": "🍑"
+  },
+  {
+    "id": "tequila_shot",
+    "category": "shot_straight",
+    "name": "テキーラショット",
+    "ml": 30,
+    "abv": 40,
+    "pureAlcoholG": 9.5,
+    "emoji": "🥃"
+  },
+  {
+    "id": "vodka_shot",
+    "category": "shot_straight",
+    "name": "ウォッカショット",
+    "ml": 30,
+    "abv": 40,
+    "pureAlcoholG": 9.5,
+    "emoji": "🥃"
+  },
+  {
+    "id": "whiskey_straight",
+    "category": "shot_straight",
+    "name": "ウイスキーストレート",
+    "ml": 30,
+    "abv": 43,
+    "pureAlcoholG": 10.2,
+    "emoji": "🥃"
+  },
+  {
+    "id": "cocktail_mojito",
+    "category": "cocktail",
+    "name": "モヒート",
+    "ml": 200,
+    "abv": 10,
+    "pureAlcoholG": 15.8,
+    "emoji": "🍹"
+  },
+  {
+    "id": "cocktail_gin_tonic",
+    "category": "cocktail",
+    "name": "ジントニック",
+    "ml": 200,
+    "abv": 12,
+    "pureAlcoholG": 18.9,
+    "emoji": "🍸"
+  },
+  {
+    "id": "cocktail_cassis_orange",
+    "category": "cocktail",
+    "name": "カシスオレンジ",
+    "ml": 200,
+    "abv": 8,
+    "pureAlcoholG": 12.6,
+    "emoji": "🍹"
+  },
+  {
+    "id": "cocktail_long_island",
+    "category": "cocktail",
+    "name": "ロングアイランドアイスティー",
+    "ml": 200,
+    "abv": 22,
+    "pureAlcoholG": 34.7,
+    "emoji": "🍹",
+    "notes": "強いカクテル(Lv5)"
+  },
+  {
+    "id": "soft_oolong",
+    "category": "soft_drink",
+    "name": "ウーロン茶",
+    "ml": 300,
+    "abv": 0,
+    "pureAlcoholG": 0,
+    "emoji": "🍵"
+  },
+  {
+    "id": "soft_cola",
+    "category": "soft_drink",
+    "name": "コーラ",
+    "ml": 300,
+    "abv": 0,
+    "pureAlcoholG": 0,
+    "emoji": "🥤"
+  },
+  {
+    "id": "soft_orange",
+    "category": "soft_drink",
+    "name": "オレンジジュース",
+    "ml": 200,
+    "abv": 0,
+    "pureAlcoholG": 0,
+    "emoji": "🍊"
+  }
+]
