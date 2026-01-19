@@ -16,6 +16,7 @@ import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
 import { resendConfirmationEmail } from '@/lib/auth';
 import { calculateAge } from '@/lib/database';
+import { getXPInfo, getXPToNextLevel } from '@/lib/xp';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -27,6 +28,10 @@ export default function ProfileScreen() {
   const logout = useUserStore((state) => state.logout);
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const toggleDummyData = useDevStore((state) => state.toggleDummyData);
+
+  // XP情報を計算（セレクター外で呼び出し）
+  const totalXP = user?.profile?.totalXP ?? 0;
+  const xpInfo = React.useMemo(() => getXPInfo(totalXP), [totalXP]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [birthday, setBirthday] = useState(user?.profile.birthday || '');
@@ -150,6 +155,49 @@ export default function ProfileScreen() {
             </Text>
             <Text className="text-sm text-gray-500">{user.email}</Text>
           </View>
+
+          {/* レベル表示（認証ユーザーのみ） */}
+          {!isGuest && (
+            <Animated.View entering={FadeInDown.delay(25).duration(600)}>
+              <Card variant="elevated" className="mb-6">
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center">
+                    <View className="bg-primary-100 rounded-full w-12 h-12 items-center justify-center mr-3">
+                      <Text className="text-2xl font-bold text-primary-600">
+                        {xpInfo.level}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-lg font-bold text-gray-900">
+                        レベル {xpInfo.level}
+                      </Text>
+                      <Text className="text-xs text-gray-500">
+                        {xpInfo.totalXP.toLocaleString()} XP
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-xs text-gray-500">
+                      次のレベルまで
+                    </Text>
+                    <Text className="text-sm font-semibold text-primary-600">
+                      {getXPToNextLevel(xpInfo.totalXP).toLocaleString()} XP
+                    </Text>
+                  </View>
+                </View>
+                {/* プログレスバー */}
+                <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <View
+                    className="h-full bg-primary-500 rounded-full"
+                    style={{ width: `${Math.min(100, xpInfo.progress)}%` }}
+                  />
+                </View>
+                <Text className="text-xs text-gray-400 text-center mt-2">
+                  {xpInfo.currentLevelXP.toLocaleString()} / {xpInfo.nextLevelXP.toLocaleString()} XP
+                </Text>
+              </Card>
+            </Animated.View>
+          )}
 
           {/* ゲストモードまたはログアウト */}
           {isGuest ? (

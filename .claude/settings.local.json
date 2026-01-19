@@ -8,7 +8,9 @@
       "Bash(npx expo run:ios:*)",
       "Bash(npm uninstall:*)",
       "Bash(npm ls:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(find:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

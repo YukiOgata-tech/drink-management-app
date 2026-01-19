@@ -99,6 +99,8 @@ export async function getUserWithProfile(userId: string): Promise<{
         weight: data.weight || undefined,
         gender: data.gender || undefined,
         bio: data.bio || undefined,
+        totalXP: data.total_xp ?? 0,
+        level: data.level ?? 1,
       },
       createdAt: data.created_at,
       updatedAt: data.updated_at,

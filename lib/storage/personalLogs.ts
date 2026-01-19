@@ -1,5 +1,5 @@
 import { personalLogsStorage } from './index';
-import { PersonalDrinkLog } from '@/types';
+import { PersonalDrinkLog, PersonalLogSyncStatus } from '@/types';
 
 const PERSONAL_LOGS_KEY = 'personal_logs';
 
@@ -99,5 +99,74 @@ export async function getPersonalLogsByDateRange(startDate: string, endDate: str
   } catch (error) {
     console.error('Error getting personal logs by date range:', error);
     return [];
+  }
+}
+
+// =====================================================
+// 同期関連の関数
+// =====================================================
+
+/**
+ * 記録をSynced状態にマーク
+ */
+export async function markLogAsSynced(localId: string, supabaseId: string): Promise<void> {
+  try {
+    await updatePersonalLog(localId, {
+      supabaseId,
+      syncStatus: 'synced' as PersonalLogSyncStatus,
+    });
+  } catch (error) {
+    console.error('Error marking log as synced:', error);
+    throw error;
+  }
+}
+
+/**
+ * 同期待ちの記録を取得
+ */
+export async function getPendingSyncLogs(): Promise<PersonalDrinkLog[]> {
+  try {
+    const logs = await getPersonalLogs();
+    return logs.filter((l) => l.syncStatus === 'pending' || !l.syncStatus);
+  } catch (error) {
+    console.error('Error getting pending sync logs:', error);
+    return [];
+  }
+}
+
+/**
+ * 今日記録があるか確認（デイリーボーナス判定用）
+ */
+export async function hasLocalRecordToday(): Promise<boolean> {
+  try {
+    const todayLogs = await getTodayPersonalLogs();
+    return todayLogs.length > 0;
+  } catch (error) {
+    console.error('Error checking today records:', error);
+    return false;
+  }
+}
+
+/**
+ * ローカル記録をSupabaseの記録で置き換え
+ */
+export async function replaceLogsWithSupabase(supabaseLogs: PersonalDrinkLog[]): Promise<void> {
+  try {
+    await personalLogsStorage.set(PERSONAL_LOGS_KEY, JSON.stringify(supabaseLogs));
+  } catch (error) {
+    console.error('Error replacing logs with supabase:', error);
+    throw error;
+  }
+}
+
+/**
+ * 全ての記録をクリア（ログアウト時用）
+ */
+export async function clearAllPersonalLogs(): Promise<void> {
+  try {
+    await personalLogsStorage.delete(PERSONAL_LOGS_KEY);
+  } catch (error) {
+    console.error('Error clearing personal logs:', error);
+    throw error;
   }
 }

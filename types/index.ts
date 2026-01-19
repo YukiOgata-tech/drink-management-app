@@ -16,6 +16,9 @@ export interface UserProfile {
   weight?: number; // kg
   gender?: 'male' | 'female' | 'other';
   bio?: string;
+  // XP/レベル関連
+  totalXP?: number;
+  level?: number;
 }
 
 // イベント関連
@@ -154,7 +157,9 @@ export interface CustomDrink {
   createdAt: string;
 }
 
-// 個人飲酒記録（ローカルストレージ）
+// 個人飲酒記録（ローカルストレージ + Supabase同期）
+export type PersonalLogSyncStatus = 'local' | 'synced' | 'pending';
+
 export interface PersonalDrinkLog {
   id: string;
   userId: string;
@@ -168,4 +173,18 @@ export interface PersonalDrinkLog {
   memo?: string;
   recordedAt: string;
   isCustomDrink: boolean; // カスタムドリンクかどうか
+  // 同期関連（認証ユーザーのみ使用）
+  supabaseId?: string; // Supabase drink_logs.id
+  syncStatus?: PersonalLogSyncStatus; // デフォルト: 'local'
+}
+
+// XP/レベル関連
+export type XPSource = 'drink_log' | 'event_join' | 'event_complete' | 'daily_bonus';
+
+export interface UserXP {
+  totalXP: number;
+  level: number;
+  currentLevelXP: number; // 現在レベル開始時のXP
+  nextLevelXP: number; // 次レベルに必要なXP
+  progress: number; // 0-100%
 }

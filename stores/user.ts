@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { User } from '@/types';
+import { User, XPSource, UserXP } from '@/types';
 import { signOut as authSignOut, getCurrentSession } from '@/lib/auth';
 import { updateProfile as dbUpdateProfile, getProfile, getUserWithProfile } from '@/lib/database';
+import { addXPToProfile, fetchUserXP } from '@/lib/xp-api';
+import { getXPInfo } from '@/lib/xp';
 
 interface UserState {
   user: User | null;
@@ -15,6 +17,10 @@ interface UserState {
   logout: () => Promise<void>;
   initializeAuth: () => Promise<void>;
   setAsGuest: () => void;
+  // XP関連
+  addXP: (amount: number, source: XPSource) => Promise<{ leveledUp: boolean; newLevel?: number; error: any | null }>;
+  getXPInfo: () => UserXP;
+  refreshXP: () => Promise<void>;
 }
 
 // ゲストユーザーの作成
@@ -113,5 +119,73 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setAsGuest: () => {
     set({ user: createGuestUser(), isGuest: true, isLoading: false });
+  },
+
+  // XP関連
+  addXP: async (amount, source) => {
+    const state = get();
+
+    // ゲストユーザーはXP付与なし
+    if (state.isGuest || !state.user) {
+      return { leveledUp: false, error: null };
+    }
+
+    // Supabaseにに保存
+    const { data, error } = await addXPToProfile(state.user.id, amount, source);
+
+    if (error || !data) {
+      return { leveledUp: false, error };
+    }
+
+    // ローカルステートも更新
+    set((state) => ({
+      user: state.user
+        ? {
+            ...state.user,
+            profile: {
+              ...state.user.profile,
+              totalXP: data.totalXP,
+              level: data.level,
+            },
+          }
+        : null,
+    }));
+
+    return {
+      leveledUp: data.leveledUp,
+      newLevel: data.newLevel,
+      error: null,
+    };
+  },
+
+  getXPInfo: () => {
+    const state = get();
+    const totalXP = state.user?.profile?.totalXP ?? 0;
+    return getXPInfo(totalXP);
+  },
+
+  refreshXP: async () => {
+    const state = get();
+
+    if (state.isGuest || !state.user) {
+      return;
+    }
+
+    const { xpInfo, error } = await fetchUserXP(state.user.id);
+
+    if (xpInfo && !error) {
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              profile: {
+                ...state.user.profile,
+                totalXP: xpInfo.totalXP,
+                level: xpInfo.level,
+              },
+            }
+          : null,
+      }));
+    }
   },
 }));
