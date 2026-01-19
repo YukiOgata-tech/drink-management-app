@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -14,8 +15,10 @@ import { Button, Card, Input } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
 import { resendConfirmationEmail } from '@/lib/auth';
+import { calculateAge } from '@/lib/database';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ProfileScreen() {
   const user = useUserStore((state) => state.user);
@@ -26,28 +29,57 @@ export default function ProfileScreen() {
   const toggleDummyData = useDevStore((state) => state.toggleDummyData);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [age, setAge] = useState(user?.profile.age?.toString() || '');
+  const [birthday, setBirthday] = useState(user?.profile.birthday || '');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerValue, setDatePickerValue] = useState(
+    user?.profile.birthday ? new Date(user.profile.birthday) : new Date(2000, 0, 1)
+  );
   const [height, setHeight] = useState(user?.profile.height?.toString() || '');
   const [weight, setWeight] = useState(user?.profile.weight?.toString() || '');
   const [bio, setBio] = useState(user?.profile.bio || '');
 
-  const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    updateProfile({
-      age: age ? parseInt(age) : undefined,
+  const handleSave = async () => {
+    const { error } = await updateProfile({
+      birthday: birthday || undefined,
       height: height ? parseInt(height) : undefined,
       weight: weight ? parseInt(weight) : undefined,
       bio: bio || undefined,
     });
+
+    if (error) {
+      Alert.alert('エラー', error.message || 'プロフィールの更新に失敗しました');
+      return;
+    }
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsEditing(false);
+
+    if (!isGuest) {
+      Alert.alert('保存完了', 'プロフィールを更新しました');
+    }
   };
 
   const handleCancel = () => {
-    setAge(user?.profile.age?.toString() || '');
+    setBirthday(user?.profile.birthday || '');
+    setDatePickerValue(
+      user?.profile.birthday ? new Date(user.profile.birthday) : new Date(2000, 0, 1)
+    );
     setHeight(user?.profile.height?.toString() || '');
     setWeight(user?.profile.weight?.toString() || '');
     setBio(user?.profile.bio || '');
     setIsEditing(false);
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (selectedDate) {
+      setDatePickerValue(selectedDate);
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      setBirthday(formattedDate);
+    }
   };
 
   const handleLogout = () => {
@@ -208,14 +240,51 @@ export default function ProfileScreen() {
 
               {isEditing ? (
                 <View>
-                  <Input
-                    label="年齢"
-                    value={age}
-                    onChangeText={setAge}
-                    keyboardType="numeric"
-                    placeholder="例: 22"
-                    icon={<Text className="text-xl">🎂</Text>}
-                  />
+                  {/* 誕生日 */}
+                  <View className="mb-4">
+                    <Text className="text-sm font-semibold text-gray-700 mb-2">
+                      誕生日
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(true)}
+                      className="bg-white border border-gray-300 rounded-xl px-4 py-3 flex-row items-center"
+                    >
+                      <Text className="text-xl mr-3">🎂</Text>
+                      <Text className="text-base text-gray-900 flex-1">
+                        {birthday
+                          ? new Date(birthday).toLocaleDateString('ja-JP', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })
+                          : '誕生日を選択'}
+                      </Text>
+                      <Text className="text-gray-400">▼</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={datePickerValue}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleDateChange}
+                      maximumDate={new Date()}
+                      minimumDate={new Date(1900, 0, 1)}
+                      locale="ja-JP"
+                    />
+                  )}
+
+                  {Platform.OS === 'ios' && showDatePicker && (
+                    <View className="bg-white border border-gray-200 rounded-xl p-2 mb-4">
+                      <Button
+                        title="完了"
+                        onPress={() => setShowDatePicker(false)}
+                        size="sm"
+                      />
+                    </View>
+                  )}
+
                   <Input
                     label="身長 (cm)"
                     value={height}
@@ -243,22 +312,37 @@ export default function ProfileScreen() {
                   />
 
                   <View className="flex-row gap-3">
-                    <Button
-                      title="キャンセル"
-                      variant="outline"
-                      onPress={handleCancel}
-                      fullWidth
-                    />
-                    <Button
-                      title="保存"
-                      onPress={handleSave}
-                      fullWidth
-                    />
+                    <View className="flex-1">
+                      <Button
+                        title="キャンセル"
+                        variant="outline"
+                        onPress={handleCancel}
+                        fullWidth
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Button
+                        title="保存"
+                        onPress={handleSave}
+                        fullWidth
+                      />
+                    </View>
                   </View>
                 </View>
               ) : (
                 <View className="space-y-4">
-                  <InfoRow icon="🎂" label="年齢" value={user.profile.age ? `${user.profile.age}歳` : '未設定'} />
+                  <InfoRow
+                    icon="🎂"
+                    label="年齢"
+                    value={
+                      user.profile.birthday
+                        ? (() => {
+                            const age = calculateAge(user.profile.birthday);
+                            return age > 0 ? `${age}歳` : '未設定';
+                          })()
+                        : '未設定'
+                    }
+                  />
                   <InfoRow icon="📏" label="身長" value={user.profile.height ? `${user.profile.height}cm` : '未設定'} />
                   <InfoRow icon="⚖️" label="体重" value={user.profile.weight ? `${user.profile.weight}kg` : '未設定'} />
                   {user.profile.bio && (

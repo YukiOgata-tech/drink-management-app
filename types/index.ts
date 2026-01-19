@@ -11,7 +11,7 @@ export interface User {
 }
 
 export interface UserProfile {
-  age?: number;
+  birthday?: string; // YYYY-MM-DD format
   height?: number; // cm
   weight?: number; // kg
   gender?: 'male' | 'female' | 'other';
@@ -29,6 +29,8 @@ export interface Event {
   startedAt: string;
   endedAt?: string;
   recordingRule: EventRecordingRule;
+  requiredApprovals: number; // consensusモードで必要な承認数（デフォルト1）
+  inviteCode: string; // 招待コード（6桁英数字、自動生成）
   hostId: string;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +41,7 @@ export interface EventMember {
   userId: string;
   role: EventMemberRole;
   joinedAt: string;
+  leftAt?: string; // 途中離脱時刻（NULLなら参加中）
 }
 
 // ドリンク関連
@@ -73,15 +76,23 @@ export interface DrinkLog {
   userId: string;
   eventId?: string; // nullの場合は日常ログ
   drinkId?: string; // DefaultDrinkのID（カスタムの場合はnull）
-  customName?: string; // カスタム入力時の名前
+  drinkName: string; // ドリンク名
   ml: number;
   abv: number;
   pureAlcoholG: number;
   count: number; // 杯数
+  memo?: string; // 記録時のメモ（「ここで酔った」など）
+  recordedById: string; // 誰が記録したか
   status: DrinkLogStatus;
   recordedAt: string;
   createdAt: string;
-  updatedAt: string;
+}
+
+export interface DrinkLogApproval {
+  id: string;
+  drinkLogId: string;
+  approvedByUserId: string;
+  approvedAt: string;
 }
 
 // メモ関連
@@ -109,4 +120,52 @@ export interface DrinkStats {
   totalPureAlcoholG: number;
   averagePerDay: number;
   mostFrequentDrink?: string;
+}
+
+// Supabase商品マスター
+export interface Product {
+  id: string;
+  category: DrinkCategory;
+  name: string;
+  brand: string;
+  manufacturer: string;
+  ml: number;
+  abv: number;
+  emoji?: string;
+  jan_code?: string;
+  price_range?: string;
+  notes?: string;
+  is_official: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// カスタムドリンク（ローカルストレージ）
+export interface CustomDrink {
+  id: string;
+  category: DrinkCategory;
+  name: string;
+  brand?: string;
+  manufacturer?: string;
+  ml: number;
+  abv: number;
+  emoji?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// 個人飲酒記録（ローカルストレージ）
+export interface PersonalDrinkLog {
+  id: string;
+  userId: string;
+  drinkId?: string; // products.id or customDrink.id
+  drinkName: string;
+  drinkCategory: DrinkCategory;
+  ml: number;
+  abv: number;
+  pureAlcoholG: number;
+  count: number;
+  memo?: string;
+  recordedAt: string;
+  isCustomDrink: boolean; // カスタムドリンクかどうか
 }

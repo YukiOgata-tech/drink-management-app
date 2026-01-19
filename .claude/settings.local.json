@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npx expo install expo-clipboard)",
+      "Bash(npx expo install:*)",
+      "Bash(npx expo run:ios:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm ls:*)",
+      "Bash(head:*)"
     ]
   }
 }

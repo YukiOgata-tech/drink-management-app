@@ -51,7 +51,7 @@ export default function HomeScreen() {
 
           {/* 今日の記録サマリ */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <Card variant="elevated" className="mb-6 bg-gradient-to-r from-primary-500 to-secondary-500">
+            <Card variant="elevated" className="mb-6 bg-primary-500">
               <Text className="text-lg font-bold text-white mb-4">
                 今日の記録 📊
               </Text>

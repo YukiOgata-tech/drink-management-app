@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Button, Card } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
+import { usePersonalLogsStore } from '@/stores/personalLogs';
+import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDevStore } from '@/stores/dev';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +28,12 @@ export default function DrinksScreen() {
   const defaultDrinks = useDrinksStore((state) => state.defaultDrinks);
   const addDrinkLog = useDrinksStore((state) => state.addDrinkLog);
   const getDefaultDrinkById = useDrinksStore((state) => state.getDefaultDrinkById);
+
+  const personalLogs = usePersonalLogsStore((state) => state.logs);
+  const loadPersonalLogs = usePersonalLogsStore((state) => state.loadLogs);
+  const customDrinks = useCustomDrinksStore((state) => state.drinks);
+  const loadCustomDrinks = useCustomDrinksStore((state) => state.loadDrinks);
+
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,11 +42,19 @@ export default function DrinksScreen() {
   const [selectedDrink, setSelectedDrink] = useState<any>(null);
   const [count, setCount] = useState(1);
 
+  useEffect(() => {
+    loadPersonalLogs();
+    loadCustomDrinks();
+  }, []);
+
   if (!user) return null;
 
   const userLogs = isDummyDataEnabled
     ? drinkLogs.filter((log) => log.userId === user.id).slice(0, 20)
     : [];
+
+  // 個人記録を取得（最新20件）
+  const recentPersonalLogs = personalLogs.slice(0, 20);
 
   const categories = [
     { id: 'beer', name: 'ビール', emoji: '🍺' },
@@ -97,9 +114,9 @@ export default function DrinksScreen() {
           {/* 記録追加ボタン */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <Button
-              title="記録を追加"
+              title="個人記録を追加"
               icon={<Text className="text-xl">➕</Text>}
-              onPress={() => setShowAddModal(true)}
+              onPress={() => router.push('/drinks/add-personal')}
               fullWidth
               size="lg"
             />
@@ -108,12 +125,25 @@ export default function DrinksScreen() {
           {/* 履歴 */}
           <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mt-6">
             <Text className="text-lg font-bold text-gray-900 mb-3">
-              最近の記録{isDummyDataEnabled && '（ダミーデータ）'}
+              最近の記録
             </Text>
-            {isDummyDataEnabled && userLogs.length > 0 ? (
+            {recentPersonalLogs.length > 0 ? (
               <View className="space-y-3">
-                {userLogs.map((log, index) => {
-                  const drink = getDefaultDrinkById(log.drinkId || '');
+                {recentPersonalLogs.map((log, index) => {
+                  const getCategoryEmoji = (category: string) => {
+                    const emojiMap: Record<string, string> = {
+                      beer: '🍺',
+                      highball: '🥃',
+                      chuhai_sour: '🍋',
+                      shochu: '🥃',
+                      sake: '🍶',
+                      wine: '🍷',
+                      cocktail: '🍹',
+                      other: '🍸',
+                    };
+                    return emojiMap[category] || '🍺';
+                  };
+
                   return (
                     <Animated.View
                       key={log.id}
@@ -121,25 +151,39 @@ export default function DrinksScreen() {
                     >
                       <Card variant="outlined">
                         <View className="flex-row items-center">
-                          <Text className="text-3xl mr-3">{drink?.emoji || '🍺'}</Text>
+                          <Text className="text-3xl mr-3">
+                            {getCategoryEmoji(log.drinkCategory)}
+                          </Text>
                           <View className="flex-1">
-                            <Text className="text-base font-semibold text-gray-900">
-                              {drink?.name || 'カスタムドリンク'}
-                            </Text>
+                            <View className="flex-row items-center">
+                              <Text className="text-base font-semibold text-gray-900">
+                                {log.drinkName}
+                              </Text>
+                              {log.isCustomDrink && (
+                                <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
+                                  <Text className="text-xs text-amber-700 font-semibold">
+                                    カスタム
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
                             <Text className="text-sm text-gray-500 mt-1">
-                              {log.count}杯 • {(log.pureAlcoholG * log.count).toFixed(1)}g
+                              {log.count}杯 • {log.pureAlcoholG.toFixed(1)}g
                             </Text>
                             <Text className="text-xs text-gray-400 mt-1">
                               {dayjs(log.recordedAt).format('M月D日 HH:mm')}
                             </Text>
-                          </View>
-                          {!log.eventId && (
-                            <View className="bg-blue-100 px-2 py-1 rounded-lg">
-                              <Text className="text-xs font-semibold text-blue-600">
-                                日常
+                            {log.memo && (
+                              <Text className="text-xs text-gray-600 mt-1">
+                                💬 {log.memo}
                               </Text>
-                            </View>
-                          )}
+                            )}
+                          </View>
+                          <View className="bg-blue-100 px-2 py-1 rounded-lg">
+                            <Text className="text-xs font-semibold text-blue-600">
+                              個人
+                            </Text>
+                          </View>
                         </View>
                       </Card>
                     </Animated.View>
@@ -150,7 +194,12 @@ export default function DrinksScreen() {
               <Card variant="outlined">
                 <View className="items-center py-12">
                   <Text className="text-4xl mb-2">📝</Text>
-                  <Text className="text-gray-500">まだ記録がありません</Text>
+                  <Text className="text-gray-500 mb-4">まだ記録がありません</Text>
+                  <Button
+                    title="最初の記録を追加"
+                    size="sm"
+                    onPress={() => router.push('/drinks/add-personal')}
+                  />
                 </View>
               </Card>
             )}

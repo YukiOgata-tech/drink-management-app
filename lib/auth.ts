@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { User } from '@/types';
+import { getProfile } from './database';
 
 export interface AuthError {
   message: string;
@@ -74,6 +75,9 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
       return { user: null, error: { message: 'ログインに失敗しました' } };
     }
 
+    // データベースからプロフィール情報を取得
+    const { profile } = await getProfile(data.user.id);
+
     // Userオブジェクトを作成
     const user: User = {
       id: data.user.id,
@@ -81,7 +85,7 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
       emailConfirmed: !!data.user.email_confirmed_at,
       displayName: data.user.user_metadata?.display_name || 'ユーザー',
       avatar: data.user.user_metadata?.avatar_url,
-      profile: {},
+      profile: profile || {},
       createdAt: data.user.created_at,
       updatedAt: new Date().toISOString(),
     };
@@ -120,13 +124,16 @@ export async function getCurrentSession() {
       return { user: null, error };
     }
 
+    // データベースからプロフィール情報を取得
+    const { profile } = await getProfile(data.session.user.id);
+
     const user: User = {
       id: data.session.user.id,
       email: data.session.user.email!,
       emailConfirmed: !!data.session.user.email_confirmed_at,
       displayName: data.session.user.user_metadata?.display_name || 'ユーザー',
       avatar: data.session.user.user_metadata?.avatar_url,
-      profile: {},
+      profile: profile || {},
       createdAt: data.session.user.created_at,
       updatedAt: new Date().toISOString(),
     };
@@ -184,6 +191,9 @@ export async function handleAuthCallback(url: string): Promise<AuthResponse> {
       return { user: null, error: { message: '認証に失敗しました' } };
     }
 
+    // データベースからプロフィール情報を取得
+    const { profile } = await getProfile(data.user.id);
+
     // Userオブジェクトを作成
     const user: User = {
       id: data.user.id,
@@ -191,7 +201,7 @@ export async function handleAuthCallback(url: string): Promise<AuthResponse> {
       emailConfirmed: !!data.user.email_confirmed_at,
       displayName: data.user.user_metadata?.display_name || 'ユーザー',
       avatar: data.user.user_metadata?.avatar_url,
-      profile: {},
+      profile: profile || {},
       createdAt: data.user.created_at,
       updatedAt: new Date().toISOString(),
     };

@@ -8,7 +8,7 @@ export const dummyUser: User = {
   displayName: '山田太郎',
   avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo',
   profile: {
-    age: 22,
+    birthday: '2002-04-15', // 22歳
     height: 172,
     weight: 65,
     gender: 'male',
@@ -27,7 +27,7 @@ export const dummyParticipants: User[] = [
     displayName: '田中花子',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=tanaka',
     profile: {
-      age: 21,
+      birthday: '2003-08-20', // 21歳
       gender: 'female',
     },
     createdAt: '2024-01-01T00:00:00Z',
@@ -40,7 +40,7 @@ export const dummyParticipants: User[] = [
     displayName: '鈴木次郎',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=suzuki',
     profile: {
-      age: 23,
+      birthday: '2001-11-05', // 23歳
       gender: 'male',
     },
     createdAt: '2024-01-01T00:00:00Z',
@@ -53,7 +53,7 @@ export const dummyParticipants: User[] = [
     displayName: '佐藤美咲',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sato',
     profile: {
-      age: 22,
+      birthday: '2002-06-10', // 22歳
       gender: 'female',
     },
     createdAt: '2024-01-01T00:00:00Z',

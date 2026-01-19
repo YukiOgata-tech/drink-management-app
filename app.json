@@ -4,22 +4,56 @@
     "slug": "drink-management",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": {
+      "light": "./assets/images/DMA-icon_light.png",
+      "dark": "./assets/images/DMA-icon_dark.png"
+    },
     "scheme": "drinkmanagement",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yukiogata-411.drinkmanagement"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/DMA-icon_light.png",
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "drinkmanagement",
+              "host": "events"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "drinkmanagement",
+              "host": "events"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "package": "com.yukiogata_411.drinkmanagement"
     },
     "web": {
       "output": "static",
@@ -31,17 +65,18 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/DMA-icon_light.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
+            "image": "./assets/images/DMA-icon_dark.png",
             "backgroundColor": "#000000"
           }
         }
       ],
       "expo-secure-store",
-      "expo-barcode-scanner"
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

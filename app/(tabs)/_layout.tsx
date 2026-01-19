@@ -52,7 +52,49 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="events/create"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="events/[id]/index"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="events/[id]/invite"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="events/[id]/add-drink"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="events/[id]/approvals"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="events/[id]/ranking"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="drinks/add-personal"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="drinks/add-custom-drink"
         options={{
           href: null,
         }}

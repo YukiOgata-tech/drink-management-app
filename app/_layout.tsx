@@ -57,6 +57,14 @@ export default function RootLayout() {
         // 認証成功後、プロフィール画面に遷移
         router.replace('/(tabs)/profile');
       }
+      return;
+    }
+
+    // イベント招待URLかチェック
+    const { path, queryParams } = Linking.parse(url);
+    if (path === 'events/join' && queryParams?.code) {
+      // 招待コードを持って参加確認画面へ
+      router.push(`/join-event?code=${queryParams.code}`);
     }
   };
 

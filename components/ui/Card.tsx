@@ -12,10 +12,13 @@ export function Card({
   className,
   ...props
 }: CardProps) {
+  // カスタム背景色が指定されているかチェック
+  const hasCustomBg = className?.includes('bg-');
+
   const variantStyles = {
-    default: 'bg-white',
-    elevated: 'bg-white shadow-lg',
-    outlined: 'bg-white border border-gray-200',
+    default: hasCustomBg ? '' : 'bg-white',
+    elevated: hasCustomBg ? 'shadow-lg' : 'bg-white shadow-lg',
+    outlined: hasCustomBg ? 'border border-gray-200' : 'bg-white border border-gray-200',
   };
 
   return (

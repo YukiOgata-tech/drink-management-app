@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User } from '@/types';
 import { signOut as authSignOut, getCurrentSession } from '@/lib/auth';
+import { updateProfile as dbUpdateProfile, getProfile, getUserWithProfile } from '@/lib/database';
 
 interface UserState {
   user: User | null;
@@ -8,7 +9,8 @@ interface UserState {
   isLoading: boolean;
   hasAgreedToConsent: boolean;
   setUser: (user: User | null, isGuest?: boolean) => void;
-  updateProfile: (profile: Partial<User['profile']>) => void;
+  updateProfile: (profile: Partial<User['profile']>) => Promise<{ error: any | null }>;
+  refreshProfile: () => Promise<void>;
   agreeToConsent: () => void;
   logout: () => Promise<void>;
   initializeAuth: () => Promise<void>;
@@ -34,7 +36,31 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setUser: (user, isGuest = false) => set({ user, isGuest, isLoading: false }),
 
-  updateProfile: (profile) =>
+  updateProfile: async (profile) => {
+    const state = get();
+
+    // ゲストユーザーの場合はローカルのみ更新
+    if (state.isGuest || !state.user) {
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              profile: { ...state.user.profile, ...profile },
+              updatedAt: new Date().toISOString(),
+            }
+          : null,
+      }));
+      return { error: null };
+    }
+
+    // 認証済みユーザーの場合はデータベースに保存
+    const { error } = await dbUpdateProfile(state.user.id, profile);
+
+    if (error) {
+      return { error };
+    }
+
+    // ローカルステートも更新
     set((state) => ({
       user: state.user
         ? {
@@ -43,7 +69,25 @@ export const useUserStore = create<UserState>((set, get) => ({
             updatedAt: new Date().toISOString(),
           }
         : null,
-    })),
+    }));
+
+    return { error: null };
+  },
+
+  refreshProfile: async () => {
+    const state = get();
+
+    if (state.isGuest || !state.user) {
+      return;
+    }
+
+    // データベースから最新のプロフィールを取得
+    const { user, error } = await getUserWithProfile(state.user.id);
+
+    if (user && !error) {
+      set({ user });
+    }
+  },
 
   agreeToConsent: () => set({ hasAgreedToConsent: true }),
 
