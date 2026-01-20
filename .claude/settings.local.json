@@ -10,7 +10,10 @@
       "Bash(npm ls:*)",
       "Bash(head:*)",
       "Bash(find:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:expo.dev)",
+      "WebFetch(domain:www.callstack.com)"
     ]
   }
 }

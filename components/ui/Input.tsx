@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, TextInput, TextInputProps, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TextInputProps,
+  Platform,
+  StyleSheet,
+  TextStyle,
+} from 'react-native';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -13,40 +21,71 @@ export function Input({
   error,
   icon,
   helperText,
-  className,
   style,
   ...props
 }: InputProps) {
   return (
-    <View className="mb-4">
-      {label && <Text className="text-sm font-semibold text-gray-700 mb-2">{label}</Text>}
-      <View
-        className={`
-          flex-row items-center
-          bg-gray-50 border rounded-xl px-4 py-3
-          ${error ? 'border-red-500' : 'border-gray-200'}
-        `}
-      >
-        {icon && <View className="mr-2">{icon}</View>}
+    <View style={styles.container}>
+      {label && <Text style={styles.label}>{label}</Text>}
+      <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
+        {icon && <View style={styles.iconWrapper}>{icon}</View>}
         <TextInput
-          className={`flex-1 text-base text-gray-900 ${className || ''}`}
-          style={[
-            {
-              minHeight: Platform.OS === 'ios' ? 20 : undefined,
-              paddingVertical: 0,
-            },
-            style,
-          ]}
+          style={[styles.input, style as TextStyle]}
           placeholderTextColor="#9ca3af"
           autoCorrect={false}
           spellCheck={false}
           {...props}
         />
       </View>
-      {error && <Text className="text-sm text-red-500 mt-1">{error}</Text>}
+      {error && <Text style={styles.errorText}>{error}</Text>}
       {helperText && !error && (
-        <Text className="text-sm text-gray-500 mt-1">{helperText}</Text>
+        <Text style={styles.helperText}>{helperText}</Text>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  inputWrapperError: {
+    borderColor: '#ef4444',
+  },
+  iconWrapper: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    minHeight: Platform.OS === 'ios' ? 20 : undefined,
+    paddingVertical: 0,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#ef4444',
+    marginTop: 4,
+  },
+  helperText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+});

@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Slot, useRouter } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import 'react-native-reanimated';
 import '@/global.css';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUserStore } from '@/stores/user';
 import { handleAuthCallback } from '@/lib/auth';
 
@@ -15,9 +14,20 @@ export const unstable_settings = {
   initialRouteName: 'consent',
 };
 
+// カスタムテーマ（ライトモード固定）
+const AppTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#f9fafb',
+    card: '#ffffff',
+    text: '#111827',
+    border: '#e5e7eb',
+    primary: '#0ea5e9',
+  },
+};
+
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const router = useRouter();
   const initializeAuth = useUserStore((state) => state.initializeAuth);
   const setUser = useUserStore((state) => state.setUser);
 
@@ -27,7 +37,6 @@ export default function RootLayout() {
 
   // ディープリンクハンドラー
   useEffect(() => {
-    // アプリ起動時のURLをチェック
     const handleInitialUrl = async () => {
       const url = await Linking.getInitialURL();
       if (url) {
@@ -35,7 +44,6 @@ export default function RootLayout() {
       }
     };
 
-    // URLイベントリスナー（アプリが既に起動している場合）
     const subscription = Linking.addEventListener('url', async (event) => {
       await processAuthUrl(event.url);
     });
@@ -48,32 +56,33 @@ export default function RootLayout() {
   }, []);
 
   const processAuthUrl = async (url: string) => {
-    // 認証コールバックURLかチェック
     if (url.includes('auth/callback')) {
       const { user, error } = await handleAuthCallback(url);
 
       if (user && !error) {
         setUser(user, false);
-        // 認証成功後、プロフィール画面に遷移
         router.replace('/(tabs)/profile');
       }
       return;
     }
 
-    // イベント招待URLかチェック
     const { path, queryParams } = Linking.parse(url);
     if (path === 'events/join' && queryParams?.code) {
-      // 招待コードを持って参加確認画面へ
       router.push(`/join-event?code=${queryParams.code}`);
     }
   };
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Slot />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ThemeProvider value={AppTheme}>
+      <SafeAreaProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="consent" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="join-event" />
+        </Stack>
+        <StatusBar style="dark" />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
