@@ -45,6 +45,9 @@ export interface EventMember {
   role: EventMemberRole;
   joinedAt: string;
   leftAt?: string; // 途中離脱時刻（NULLなら参加中）
+  // プロフィール情報（JOINで取得）
+  displayName?: string;
+  avatar?: string;
 }
 
 // ドリンク関連
@@ -89,6 +92,12 @@ export interface DrinkLog {
   status: DrinkLogStatus;
   recordedAt: string;
   createdAt: string;
+}
+
+// 飲酒記録（プロフィール情報付き）
+export interface DrinkLogWithUser extends DrinkLog {
+  userName?: string;
+  userAvatar?: string;
 }
 
 export interface DrinkLogApproval {

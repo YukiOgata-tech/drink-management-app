@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { DrinkLog, DrinkLogApproval } from '@/types';
+import { DrinkLog, DrinkLogApproval, DrinkLogWithUser } from '@/types';
 
 export interface DatabaseError {
   message: string;
@@ -73,13 +73,19 @@ export async function createDrinkLog(params: {
 }
 
 /**
- * イベントの飲酒記録一覧を取得
+ * イベントの飲酒記録一覧を取得（プロフィール情報付き）
  */
-export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs: DrinkLog[]; error: DatabaseError | null }> {
+export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs: DrinkLogWithUser[]; error: DatabaseError | null }> {
   try {
     const { data, error } = await supabase
       .from('drink_logs')
-      .select('*')
+      .select(`
+        *,
+        profiles:user_id (
+          display_name,
+          avatar_url
+        )
+      `)
       .eq('event_id', eventId)
       .order('recorded_at', { ascending: false });
 
@@ -87,7 +93,7 @@ export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs:
       return { drinkLogs: [], error: { message: error.message, code: error.code } };
     }
 
-    const drinkLogs: DrinkLog[] = data.map((item) => ({
+    const drinkLogs: DrinkLogWithUser[] = data.map((item: any) => ({
       id: item.id,
       userId: item.user_id,
       eventId: item.event_id,
@@ -102,6 +108,8 @@ export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs:
       status: item.status,
       recordedAt: item.recorded_at,
       createdAt: item.created_at,
+      userName: item.profiles?.display_name || '名無し',
+      userAvatar: item.profiles?.avatar_url,
     }));
 
     return { drinkLogs, error: null };

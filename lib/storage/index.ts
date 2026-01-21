@@ -6,6 +6,7 @@ const STORAGE_PREFIX = {
   auth: 'auth:',
   customDrinks: 'custom-drinks:',
   personalLogs: 'personal-logs:',
+  eventLogs: 'event-logs:',
 } as const;
 
 /**
@@ -50,6 +51,21 @@ export const personalLogsStorage = {
   },
   async delete(key: string): Promise<void> {
     await AsyncStorage.removeItem(`${STORAGE_PREFIX.personalLogs}${key}`);
+  },
+};
+
+/**
+ * イベント飲酒記録オフラインキュー用ストレージ
+ */
+export const eventLogsStorage = {
+  async getString(key: string): Promise<string | null> {
+    return AsyncStorage.getItem(`${STORAGE_PREFIX.eventLogs}${key}`);
+  },
+  async set(key: string, value: string): Promise<void> {
+    await AsyncStorage.setItem(`${STORAGE_PREFIX.eventLogs}${key}`, value);
+  },
+  async delete(key: string): Promise<void> {
+    await AsyncStorage.removeItem(`${STORAGE_PREFIX.eventLogs}${key}`);
   },
 };
 

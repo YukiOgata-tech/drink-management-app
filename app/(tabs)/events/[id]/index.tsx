@@ -14,7 +14,7 @@ import { DrinkLogCard, ParticipantRow } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
-import { DrinkLog } from '@/types';
+import { DrinkLogWithUser } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
@@ -33,7 +33,7 @@ export default function EventDetailScreen() {
     endEvent,
   } = useEventsStore();
 
-  const [drinkLogs, setDrinkLogs] = useState<DrinkLog[]>([]);
+  const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -269,12 +269,12 @@ export default function EventDetailScreen() {
               参加者 ({members.length}人)
             </Text>
             <Card variant="elevated">
-              {members.map((member, index) => (
+              {members.map((member) => (
                 <ParticipantRow
                   key={`${member.userId}-${member.eventId}`}
                   member={member}
-                  userName={`ユーザー${index + 1}`}
-                  userAvatar="https://via.placeholder.com/150"
+                  userName={member.displayName || '名無し'}
+                  userAvatar={member.avatar}
                   totalDrinks={
                     drinkLogs
                       .filter(
@@ -312,7 +312,7 @@ export default function EventDetailScreen() {
                   >
                     <DrinkLogCard
                       log={log}
-                      userName={`ユーザー`}
+                      userName={log.userName || '名無し'}
                       showStatus={event.recordingRule === 'consensus'}
                     />
                   </Animated.View>

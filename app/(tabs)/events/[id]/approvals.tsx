@@ -14,7 +14,7 @@ import { ApprovalCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
-import { DrinkLog } from '@/types';
+import { DrinkLogWithUser } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -23,7 +23,7 @@ export default function ApprovalsScreen() {
   const user = useUserStore((state) => state.user);
   const event = useEventsStore((state) => state.getEventById(id));
 
-  const [drinkLogs, setDrinkLogs] = useState<DrinkLog[]>([]);
+  const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [approvals, setApprovals] = useState<
     Map<string, { approvedByUserId: string; approvedAt: string }[]>
   >(new Map());
@@ -160,7 +160,7 @@ export default function ApprovalsScreen() {
                   >
                     <ApprovalCard
                       log={log}
-                      userName={`ユーザー`}
+                      userName={log.userName || '名無し'}
                       currentApprovals={logApprovals.length}
                       requiredApprovals={event.requiredApprovals}
                       canApprove={canApprove && !hasUserApproved}

@@ -12,6 +12,7 @@ import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
 import { useEventsStore } from '@/stores/events';
 import { useDevStore } from '@/stores/dev';
+import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
@@ -37,7 +38,13 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1">
+      {/* オフライン/同期ステータスバナー */}
+      <SyncStatusBanner />
+
+      <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 100 }}
+        >
         <View className="px-6 py-8">
           {/* ヘッダー */}
           <View className="mb-8">

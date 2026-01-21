@@ -5,7 +5,7 @@ import { EventMember } from '@/types';
 interface ParticipantRowProps {
   member: EventMember;
   userName: string;
-  userAvatar: string;
+  userAvatar?: string;
   totalDrinks?: number;
   totalAlcohol?: number;
   onPress?: () => void;
@@ -34,10 +34,16 @@ export function ParticipantRow({
       disabled={!onPress}
       className={`flex-row items-center py-3 ${!isActive ? 'opacity-50' : ''}`}
     >
-      <Image
-        source={{ uri: userAvatar }}
-        className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3"
-      />
+      {userAvatar ? (
+        <Image
+          source={{ uri: userAvatar }}
+          className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3"
+        />
+      ) : (
+        <View className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3 bg-primary-100 items-center justify-center">
+          <Text className="text-xl">👤</Text>
+        </View>
+      )}
       <View className="flex-1">
         <View className="flex-row items-center gap-2 mb-1">
           <Text className="text-base font-semibold text-gray-900">

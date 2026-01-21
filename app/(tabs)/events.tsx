@@ -6,6 +6,7 @@ import { Button, Card } from '@/components/ui';
 import { EventCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -35,6 +36,9 @@ export default function EventsScreen() {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+      {/* オフライン/同期ステータスバナー */}
+      <SyncStatusBanner />
+
       <View className="flex-1">
         {/* ヘッダー */}
         <View className="px-6 py-6 bg-white border-b border-gray-200">
@@ -50,16 +54,30 @@ export default function EventsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {/* イベント作成ボタン */}
+          {/* アクションボタン */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <Button
-              title="新しいイベントを作成"
-              icon={<Text className="text-xl">➕</Text>}
-              onPress={() => router.push('/(tabs)/events/create')}
-              fullWidth
-              size="lg"
-              variant="secondary"
-            />
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <Button
+                  title="イベント作成"
+                  icon={<Text className="text-xl">➕</Text>}
+                  onPress={() => router.push('/(tabs)/events/create')}
+                  fullWidth
+                  size="lg"
+                  variant="secondary"
+                />
+              </View>
+              <View className="flex-1">
+                <Button
+                  title="QRで参加"
+                  icon={<Text className="text-xl">📷</Text>}
+                  onPress={() => router.push('/(tabs)/events/scan')}
+                  fullWidth
+                  size="lg"
+                  variant="outline"
+                />
+              </View>
+            </View>
           </Animated.View>
 
           {/* イベント一覧 */}

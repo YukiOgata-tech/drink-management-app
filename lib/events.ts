@@ -253,13 +253,19 @@ export async function addEventMember(params: {
 }
 
 /**
- * イベントメンバー一覧を取得
+ * イベントメンバー一覧を取得（プロフィール情報付き）
  */
 export async function getEventMembers(eventId: string): Promise<{ members: EventMember[]; error: DatabaseError | null }> {
   try {
     const { data, error } = await supabase
       .from('event_members')
-      .select('*')
+      .select(`
+        *,
+        profiles:user_id (
+          display_name,
+          avatar_url
+        )
+      `)
       .eq('event_id', eventId)
       .order('joined_at', { ascending: true });
 
@@ -267,12 +273,14 @@ export async function getEventMembers(eventId: string): Promise<{ members: Event
       return { members: [], error: { message: error.message, code: error.code } };
     }
 
-    const members: EventMember[] = data.map((item) => ({
+    const members: EventMember[] = data.map((item: any) => ({
       eventId: item.event_id,
       userId: item.user_id,
       role: item.role,
       joinedAt: item.joined_at,
       leftAt: item.left_at,
+      displayName: item.profiles?.display_name || '名無し',
+      avatar: item.profiles?.avatar_url,
     }));
 
     return { members, error: null };

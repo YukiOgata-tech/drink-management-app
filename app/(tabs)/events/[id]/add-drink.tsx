@@ -15,7 +15,10 @@ import { Button, Card, Input } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useDrinksStore } from '@/stores/drinks';
+import { useSyncStore } from '@/stores/sync';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
+import { addPendingEventDrinkLog } from '@/lib/storage/eventDrinkLogs';
+import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -25,6 +28,8 @@ export default function AddDrinkScreen() {
   const event = useEventsStore((state) => state.getEventById(id));
   const members = useEventsStore((state) => state.getEventMembers(id));
   const defaultDrinks = useDrinksStore((state) => state.defaultDrinks);
+  const isOnline = useSyncStore((state) => state.isOnline);
+  const refreshPendingCounts = useSyncStore((state) => state.refreshPendingCounts);
 
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -86,7 +91,7 @@ export default function AddDrinkScreen() {
     setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const { drinkLog, error } = await DrinkLogsAPI.createDrinkLog({
+    const drinkLogData = {
       userId: selectedUserId,
       eventId: id,
       drinkId: selectedDrink.id,
@@ -97,14 +102,62 @@ export default function AddDrinkScreen() {
       count,
       memo: memo.trim() || undefined,
       recordedById: user.id,
-      status: event.recordingRule === 'consensus' ? 'pending' : 'approved',
-    });
+      status: (event.recordingRule === 'consensus' ? 'pending' : 'approved') as 'pending' | 'approved',
+    };
+
+    // オフラインの場合はローカルキューに保存
+    if (!isOnline) {
+      try {
+        await addPendingEventDrinkLog({
+          localId: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          ...drinkLogData,
+          recordedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        });
+
+        await refreshPendingCounts();
+        setIsSubmitting(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+          'オフライン保存',
+          '記録をローカルに保存しました。オンラインに戻った時に自動的に同期されます。',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      } catch (err) {
+        setIsSubmitting(false);
+        Alert.alert('エラー', 'ローカル保存に失敗しました');
+        return;
+      }
+    }
+
+    // オンラインの場合は直接Supabaseに保存
+    const { drinkLog, error } = await DrinkLogsAPI.createDrinkLog(drinkLogData);
 
     setIsSubmitting(false);
 
     if (error) {
-      Alert.alert('エラー', error.message || '記録の追加に失敗しました');
-      return;
+      // APIエラーの場合もオフラインキューに保存
+      try {
+        await addPendingEventDrinkLog({
+          localId: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          ...drinkLogData,
+          recordedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        });
+
+        await refreshPendingCounts();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert(
+          '一時保存',
+          'サーバーに接続できませんでした。記録をローカルに保存しました。後で自動的に同期されます。',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      } catch (saveErr) {
+        Alert.alert('エラー', error.message || '記録の追加に失敗しました');
+        return;
+      }
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -124,6 +177,9 @@ export default function AddDrinkScreen() {
         className="flex-1"
       >
         <View className="flex-1">
+          {/* オフラインバナー */}
+          <SyncStatusBanner />
+
           {/* ヘッダー */}
           <View className="px-6 py-4 bg-white border-b border-gray-200 flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()}>
@@ -171,7 +227,7 @@ export default function AddDrinkScreen() {
                               : 'text-gray-900'
                           }`}
                         >
-                          {member.userId === user.id ? '自分' : 'ユーザー'}
+                          {member.userId === user.id ? '自分' : (member.displayName || '名無し')}
                         </Text>
                       </TouchableOpacity>
                     ))}

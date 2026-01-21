@@ -112,15 +112,17 @@ export default function DrinksScreen() {
 
         <ScrollView className="flex-1 px-6 py-6">
           {/* 記録追加ボタン */}
-          <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <Button
-              title="個人記録を追加"
-              icon={<Text className="text-xl">➕</Text>}
-              onPress={() => router.push('/drinks/add-personal')}
-              fullWidth
-              size="lg"
-            />
-          </Animated.View>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/drinks/add-personal');
+            }}
+            activeOpacity={0.8}
+            className="bg-primary-500 rounded-xl py-4 flex-row items-center justify-center"
+          >
+            <Text className="text-xl mr-2">➕</Text>
+            <Text className="text-white font-semibold text-lg">個人記録を追加</Text>
+          </TouchableOpacity>
 
           {/* 履歴 */}
           <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mt-6">
@@ -198,7 +200,10 @@ export default function DrinksScreen() {
                   <Button
                     title="最初の記録を追加"
                     size="sm"
-                    onPress={() => router.push('/drinks/add-personal')}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push('/(tabs)/drinks/add-personal');
+                    }}
                   />
                 </View>
               </Card>

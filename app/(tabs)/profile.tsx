@@ -14,9 +14,11 @@ import { router } from 'expo-router';
 import { Button, Card, Input } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
+import { useSyncStore } from '@/stores/sync';
 import { resendConfirmationEmail } from '@/lib/auth';
 import { calculateAge } from '@/lib/database';
 import { getXPInfo, getXPToNextLevel } from '@/lib/xp';
+import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -28,6 +30,14 @@ export default function ProfileScreen() {
   const logout = useUserStore((state) => state.logout);
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const toggleDummyData = useDevStore((state) => state.toggleDummyData);
+
+  // 同期関連
+  const syncStatus = useSyncStore((state) => state.status);
+  const isOnline = useSyncStore((state) => state.isOnline);
+  const pendingPersonalLogs = useSyncStore((state) => state.pendingPersonalLogs);
+  const pendingEventLogs = useSyncStore((state) => state.pendingEventLogs);
+  const lastSyncAt = useSyncStore((state) => state.lastSyncAt);
+  const sync = useSyncStore((state) => state.sync);
 
   // XP情報を計算（セレクター外で呼び出し）
   const totalXP = user?.profile?.totalXP ?? 0;
@@ -135,8 +145,13 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
+  const totalPending = pendingPersonalLogs + pendingEventLogs;
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+      {/* オフライン/同期ステータスバナー */}
+      <SyncStatusBanner />
+
       <ScrollView className="flex-1">
         <View className="px-6 py-8">
           {/* ヘッダー */}
@@ -428,8 +443,55 @@ export default function ProfileScreen() {
             </Card>
           </Animated.View>
 
+          {/* 同期ステータス（認証ユーザーのみ） */}
+          {!isGuest && (
+            <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+              <Card variant="elevated" className="mb-6">
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className="text-lg font-bold text-gray-900">
+                    データ同期
+                  </Text>
+                  <View className={`px-3 py-1 rounded-full ${isOnline ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    <Text className={`text-xs font-semibold ${isOnline ? 'text-green-600' : 'text-gray-600'}`}>
+                      {isOnline ? 'オンライン' : 'オフライン'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="space-y-3 mb-4">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-sm text-gray-600">同期待ちデータ</Text>
+                    <Text className={`text-sm font-semibold ${totalPending > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                      {totalPending > 0 ? `${totalPending}件` : '全て同期済み'}
+                    </Text>
+                  </View>
+                  {lastSyncAt && (
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm text-gray-600">最終同期</Text>
+                      <Text className="text-sm text-gray-500">
+                        {new Date(lastSyncAt).toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <Button
+                  title={syncStatus === 'syncing' ? '同期中...' : '今すぐ同期'}
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    await sync();
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  }}
+                  disabled={syncStatus === 'syncing' || !isOnline}
+                  variant="outline"
+                  fullWidth
+                />
+              </Card>
+            </Animated.View>
+          )}
+
           {/* 開発モード設定 */}
-          <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+          <Animated.View entering={FadeInDown.delay(350).duration(600)}>
             <Card variant="elevated" className="mb-6">
               <View className="flex-row items-center justify-between">
                 <View className="flex-1">

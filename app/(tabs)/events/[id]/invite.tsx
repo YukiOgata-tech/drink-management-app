@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useEventsStore } from '@/stores/events';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
 
 export default function InviteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -124,7 +125,7 @@ export default function InviteScreen() {
             </Card>
           </Animated.View>
 
-          {/* QRコード（プレースホルダー） */}
+          {/* QRコード */}
           <Animated.View
             entering={FadeInDown.delay(200).duration(600)}
             className="mb-6"
@@ -134,15 +135,16 @@ export default function InviteScreen() {
             </Text>
             <Card variant="elevated">
               <View className="items-center py-6">
-                <View className="w-48 h-48 bg-gray-200 rounded-xl items-center justify-center mb-4">
-                  <Text className="text-4xl">📱</Text>
-                  <Text className="text-sm text-gray-500 mt-2">
-                    QRコードスキャン機能
-                  </Text>
-                  <Text className="text-xs text-gray-400">（実装予定）</Text>
+                <View className="bg-white p-4 rounded-xl mb-4 shadow-sm">
+                  <QRCode
+                    value={inviteLink}
+                    size={180}
+                    backgroundColor="white"
+                    color="#111827"
+                  />
                 </View>
                 <Text className="text-sm text-gray-600 text-center">
-                  カメラでQRコードを読み取って参加
+                  カメラでスキャンして参加
                 </Text>
               </View>
             </Card>

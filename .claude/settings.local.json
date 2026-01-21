@@ -13,7 +13,9 @@
       "Bash(npx tsc:*)",
       "WebFetch(domain:docs.expo.dev)",
       "WebFetch(domain:expo.dev)",
-      "WebFetch(domain:www.callstack.com)"
+      "WebFetch(domain:www.callstack.com)",
+      "Bash(npm run lint:*)",
+      "Bash(ls:*)"
     ]
   }
 }
