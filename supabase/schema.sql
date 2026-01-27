@@ -26,6 +26,7 @@ CREATE TABLE public.profiles (
   -- XP/レベル関連
   total_xp INTEGER NOT NULL DEFAULT 0 CHECK (total_xp >= 0),
   level INTEGER NOT NULL DEFAULT 1 CHECK (level >= 1),
+  negative_xp INTEGER NOT NULL DEFAULT 0 CHECK (negative_xp >= 0), -- 借金XP（記録削除時に蓄積）
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );

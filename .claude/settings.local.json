@@ -15,7 +15,9 @@
       "WebFetch(domain:expo.dev)",
       "WebFetch(domain:www.callstack.com)",
       "Bash(npm run lint:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

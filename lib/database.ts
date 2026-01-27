@@ -101,6 +101,7 @@ export async function getUserWithProfile(userId: string): Promise<{
         bio: data.bio || undefined,
         totalXP: data.total_xp ?? 0,
         level: data.level ?? 1,
+        negativeXP: data.negative_xp ?? 0,
       },
       createdAt: data.created_at,
       updatedAt: data.updated_at,

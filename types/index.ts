@@ -19,6 +19,7 @@ export interface UserProfile {
   // XP/レベル関連
   totalXP?: number;
   level?: number;
+  negativeXP?: number; // 削除による借金XP（次回付与時に相殺）
 }
 
 // イベント関連
@@ -196,4 +197,5 @@ export interface UserXP {
   currentLevelXP: number; // 現在レベル開始時のXP
   nextLevelXP: number; // 次レベルに必要なXP
   progress: number; // 0-100%
+  negativeXP: number; // 削除による借金XP
 }

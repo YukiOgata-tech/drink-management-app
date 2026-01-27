@@ -50,6 +50,10 @@ CREATE TABLE public.profiles (
   weight INTEGER,                         -- kg（適正飲酒量計算用）
   gender TEXT,                            -- male/female/other
   bio TEXT,
+  -- XP/レベル関連
+  total_xp INTEGER DEFAULT 0,             -- 累計経験値
+  level INTEGER DEFAULT 1,                -- 現在レベル
+  negative_xp INTEGER DEFAULT 0,          -- 借金XP（記録削除時に蓄積、次回付与時に相殺）
   created_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE
 );
@@ -58,6 +62,17 @@ CREATE TABLE public.profiles (
 **特徴:**
 - 新規ユーザー登録時にトリガーで自動作成
 - RLS: 自分のプロフィールは閲覧・編集可能、イベントメンバーのプロフィールは閲覧可能
+
+**XP/レベルシステム:**
+- `total_xp`: 累計経験値（減少しない）
+- `level`: 累計XPから算出されるレベル
+- `negative_xp`: 記録削除時に蓄積される「借金XP」。次回XP付与時に相殺される
+
+**借金XP（negative_xp）の仕組み:**
+1. 記録追加 → +10 XP付与
+2. 記録削除 → negative_xp += 10（借金として蓄積、total_xpは減らない）
+3. 次の記録追加 → 本来+10だが借金10を相殺 → 実質+0 XP
+4. これにより「削除→再追加でXP稼ぎ」を防止しつつ、レベルダウンは発生しない
 
 ---
 

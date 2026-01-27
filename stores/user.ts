@@ -18,7 +18,7 @@ interface UserState {
   initializeAuth: () => Promise<void>;
   setAsGuest: () => void;
   // XP関連
-  addXP: (amount: number, source: XPSource) => Promise<{ leveledUp: boolean; newLevel?: number; error: any | null }>;
+  addXP: (amount: number, source: XPSource) => Promise<{ leveledUp: boolean; newLevel?: number; debtPaid: number; error: any | null }>;
   getXPInfo: () => UserXP;
   refreshXP: () => Promise<void>;
 }
@@ -127,14 +127,14 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     // ゲストユーザーはXP付与なし
     if (state.isGuest || !state.user) {
-      return { leveledUp: false, error: null };
+      return { leveledUp: false, debtPaid: 0, error: null };
     }
 
-    // Supabaseにに保存
+    // Supabaseに保存
     const { data, error } = await addXPToProfile(state.user.id, amount, source);
 
     if (error || !data) {
-      return { leveledUp: false, error };
+      return { leveledUp: false, debtPaid: 0, error };
     }
 
     // ローカルステートも更新
@@ -146,6 +146,7 @@ export const useUserStore = create<UserState>((set, get) => ({
               ...state.user.profile,
               totalXP: data.totalXP,
               level: data.level,
+              negativeXP: data.negativeXP,
             },
           }
         : null,
@@ -154,6 +155,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     return {
       leveledUp: data.leveledUp,
       newLevel: data.newLevel,
+      debtPaid: data.debtPaid,
       error: null,
     };
   },
@@ -161,7 +163,8 @@ export const useUserStore = create<UserState>((set, get) => ({
   getXPInfo: () => {
     const state = get();
     const totalXP = state.user?.profile?.totalXP ?? 0;
-    return getXPInfo(totalXP);
+    const negativeXP = state.user?.profile?.negativeXP ?? 0;
+    return getXPInfo(totalXP, negativeXP);
   },
 
   refreshXP: async () => {
@@ -182,6 +185,7 @@ export const useUserStore = create<UserState>((set, get) => ({
                 ...state.user.profile,
                 totalXP: xpInfo.totalXP,
                 level: xpInfo.level,
+                negativeXP: xpInfo.negativeXP,
               },
             }
           : null,

@@ -56,7 +56,7 @@ export function calculateProgress(totalXP: number): number {
 /**
  * XP情報オブジェクトを取得
  */
-export function getXPInfo(totalXP: number): UserXP {
+export function getXPInfo(totalXP: number, negativeXP: number = 0): UserXP {
   const level = calculateLevel(totalXP);
   const currentLevelXP = xpForLevel(level);
   const nextLevelXP = xpForLevel(level + 1);
@@ -68,6 +68,7 @@ export function getXPInfo(totalXP: number): UserXP {
     currentLevelXP,
     nextLevelXP,
     progress,
+    negativeXP,
   };
 }
 

@@ -21,6 +21,7 @@ import {
 } from '@/lib/personal-logs-api';
 import { useUserStore } from './user';
 import { XP_VALUES } from '@/lib/xp';
+import { addNegativeXP } from '@/lib/xp-api';
 
 type SyncStatus = 'idle' | 'syncing' | 'error';
 
@@ -123,11 +124,19 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
 
   deleteLog: async (id) => {
     const log = get().logs.find((l) => l.id === id);
+    const userState = useUserStore.getState();
 
     // Supabaseからも削除
     if (log?.supabaseId) {
       try {
         await deletePersonalLogFromSupabase(log.supabaseId);
+
+        // 認証ユーザーの場合、借金XPを追加（同期済みの記録のみ）
+        if (!userState.isGuest && userState.user) {
+          await addNegativeXP(userState.user.id, XP_VALUES.DRINK_LOG);
+          // ユーザーストアのXP情報を更新
+          await userState.refreshXP();
+        }
       } catch (error) {
         console.error('Error deleting from Supabase:', error);
       }
