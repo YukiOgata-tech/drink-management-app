@@ -171,7 +171,7 @@ export default function AddPersonalDrinkScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedDrink) {
       Alert.alert('エラー', '飲み物を選択してください');
       return;
@@ -199,9 +199,25 @@ export default function AddPersonalDrinkScreen() {
       isCustomDrink: selectedDrink.isCustom,
     };
 
-    addLog(log);
+    const result = await addLog(log);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.back();
+
+    // XP関連のフィードバック
+    if (result.leveledUp && result.newLevel) {
+      Alert.alert(
+        '🎉 レベルアップ！',
+        `レベル ${result.newLevel} になりました！`,
+        [{ text: 'やったー！', onPress: () => router.back() }]
+      );
+    } else if (result.debtPaid > 0) {
+      Alert.alert(
+        '✓ 記録を保存しました',
+        `借金XP ${result.debtPaid} を返済しました`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } else {
+      router.back();
+    }
   };
 
   const handleQuickSelect = (drink: DefaultDrink) => {
@@ -508,43 +524,49 @@ export default function AddPersonalDrinkScreen() {
                     <Text className="text-gray-500">該当する商品がありません</Text>
                   </View>
                 ) : (
-                  <View className="space-y-2 max-h-80">
-                    {allSearchDrinks.slice(0, 10).map(({ drink, isCustom }) => (
-                      <TouchableOpacity
-                        key={drink.id}
-                        onPress={() => handleSelectDrink(drink, isCustom)}
-                        className="flex-row items-center bg-gray-50 rounded-xl p-3"
-                        activeOpacity={0.7}
-                      >
-                        <Text className="text-2xl mr-3">{drink.emoji || '🍺'}</Text>
-                        <View className="flex-1">
-                          <View className="flex-row items-center">
-                            <Text className="text-base font-semibold text-gray-900">
-                              {drink.name}
+                  <ScrollView
+                    className="max-h-80"
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator
+                  >
+                    <View className="space-y-2">
+                      {allSearchDrinks.slice(0, 10).map(({ drink, isCustom }) => (
+                        <TouchableOpacity
+                          key={drink.id}
+                          onPress={() => handleSelectDrink(drink, isCustom)}
+                          className="flex-row items-center bg-gray-50 rounded-xl p-3"
+                          activeOpacity={0.7}
+                        >
+                          <Text className="text-2xl mr-3">{drink.emoji || '🍺'}</Text>
+                          <View className="flex-1">
+                            <View className="flex-row items-center">
+                              <Text className="text-base font-semibold text-gray-900">
+                                {drink.name}
+                              </Text>
+                              {isCustom && (
+                                <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
+                                  <Text className="text-xs text-amber-700 font-semibold">
+                                    カスタム
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text className="text-sm text-gray-500">
+                              {drink.ml}ml • {drink.abv}%
                             </Text>
-                            {isCustom && (
-                              <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
-                                <Text className="text-xs text-amber-700 font-semibold">
-                                  カスタム
-                                </Text>
-                              </View>
-                            )}
                           </View>
-                          <Text className="text-sm text-gray-500">
-                            {drink.ml}ml • {drink.abv}%
-                          </Text>
-                        </View>
-                        <Text className="text-primary-600 font-semibold">選択</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                          <Text className="text-primary-600 font-semibold">選択</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
                 )}
               </Card>
             </Animated.View>
           )}
 
-          {/* 下部余白 */}
-          <View className="h-6" />
+          {/* 下部余白（タブバー分） */}
+          <View className="h-24" />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_PREFIX = {
   app: 'app:',
   auth: 'auth:',
+  consent: 'consent:',
   customDrinks: 'custom-drinks:',
   personalLogs: 'personal-logs:',
   eventLogs: 'event-logs:',
@@ -66,6 +67,21 @@ export const eventLogsStorage = {
   },
   async delete(key: string): Promise<void> {
     await AsyncStorage.removeItem(`${STORAGE_PREFIX.eventLogs}${key}`);
+  },
+};
+
+/**
+ * 同意・年齢確認用ストレージ
+ */
+export const consentStorage = {
+  async getString(key: string): Promise<string | null> {
+    return AsyncStorage.getItem(`${STORAGE_PREFIX.consent}${key}`);
+  },
+  async set(key: string, value: string): Promise<void> {
+    await AsyncStorage.setItem(`${STORAGE_PREFIX.consent}${key}`, value);
+  },
+  async delete(key: string): Promise<void> {
+    await AsyncStorage.removeItem(`${STORAGE_PREFIX.consent}${key}`);
   },
 };
 

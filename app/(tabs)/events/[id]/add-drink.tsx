@@ -18,6 +18,8 @@ import { useDrinksStore } from '@/stores/drinks';
 import { useSyncStore } from '@/stores/sync';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { addPendingEventDrinkLog } from '@/lib/storage/eventDrinkLogs';
+import { hasRecordedToday } from '@/lib/personal-logs-api';
+import { XP_VALUES } from '@/lib/xp';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +27,8 @@ import * as Haptics from 'expo-haptics';
 export default function AddDrinkScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useUserStore((state) => state.user);
+  const isGuest = useUserStore((state) => state.isGuest);
+  const addXP = useUserStore((state) => state.addXP);
   const event = useEventsStore((state) => state.getEventById(id));
   const members = useEventsStore((state) => state.getEventMembers(id));
   const defaultDrinks = useDrinksStore((state) => state.defaultDrinks);
@@ -160,14 +164,55 @@ export default function AddDrinkScreen() {
       }
     }
 
+    // XP付与（自分の記録の場合のみ、ゲストは除外）
+    let leveledUp = false;
+    let newLevel: number | undefined;
+    let debtPaid = 0;
+
+    if (!isGuest && user && selectedUserId === user.id) {
+      try {
+        // 当日初回記録かチェック
+        const { hasRecorded } = await hasRecordedToday(user.id);
+        const isFirstOfDay = !hasRecorded;
+        const xpAmount = isFirstOfDay
+          ? XP_VALUES.DRINK_LOG + XP_VALUES.DAILY_BONUS
+          : XP_VALUES.DRINK_LOG;
+
+        const xpResult = await addXP(xpAmount, 'drink_log');
+        leveledUp = xpResult.leveledUp;
+        newLevel = xpResult.newLevel;
+        debtPaid = xpResult.debtPaid;
+      } catch (xpError) {
+        console.error('XP付与エラー:', xpError);
+      }
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      '記録完了',
-      event.recordingRule === 'consensus'
-        ? '記録を追加しました。他の参加者の承認をお待ちください。'
-        : '記録を追加しました',
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
+
+    // フィードバックメッセージの組み立て
+    let message = event.recordingRule === 'consensus'
+      ? '記録を追加しました。他の参加者の承認をお待ちください。'
+      : '記録を追加しました';
+
+    if (leveledUp && newLevel) {
+      Alert.alert(
+        '🎉 レベルアップ！',
+        `${message}\n\nレベル ${newLevel} になりました！`,
+        [{ text: 'やったー！', onPress: () => router.back() }]
+      );
+    } else if (debtPaid > 0) {
+      Alert.alert(
+        '記録完了',
+        `${message}\n\n借金XP ${debtPaid} を返済しました`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } else {
+      Alert.alert(
+        '記録完了',
+        message,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    }
   };
 
   return (

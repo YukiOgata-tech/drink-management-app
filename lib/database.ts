@@ -18,7 +18,7 @@ export async function getProfile(userId: string): Promise<ProfileResponse> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('birthday, height, weight, gender, bio')
+      .select('birthday, height, weight, gender, bio, total_xp, level, negative_xp')
       .eq('id', userId)
       .single();
 
@@ -32,6 +32,9 @@ export async function getProfile(userId: string): Promise<ProfileResponse> {
       weight: data.weight || undefined,
       gender: data.gender || undefined,
       bio: data.bio || undefined,
+      totalXP: data.total_xp ?? 0,
+      level: data.level ?? 1,
+      negativeXP: data.negative_xp ?? 0,
     };
 
     return { profile, error: null };

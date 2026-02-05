@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,14 @@ export default function ProfileScreen() {
   const isGuest = useUserStore((state) => state.isGuest);
   const updateProfile = useUserStore((state) => state.updateProfile);
   const logout = useUserStore((state) => state.logout);
+  const refreshProfile = useUserStore((state) => state.refreshProfile);
+
+  // 画面マウント時にプロフィールを最新化（認証ユーザーのみ）
+  useEffect(() => {
+    if (!isGuest && user) {
+      refreshProfile();
+    }
+  }, [isGuest, user?.id]);
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const toggleDummyData = useDevStore((state) => state.toggleDummyData);
 
@@ -41,7 +49,8 @@ export default function ProfileScreen() {
 
   // XP情報を計算（セレクター外で呼び出し）
   const totalXP = user?.profile?.totalXP ?? 0;
-  const xpInfo = React.useMemo(() => getXPInfo(totalXP), [totalXP]);
+  const negativeXP = user?.profile?.negativeXP ?? 0;
+  const xpInfo = React.useMemo(() => getXPInfo(totalXP, negativeXP), [totalXP, negativeXP]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [birthday, setBirthday] = useState(user?.profile.birthday || '');
@@ -52,6 +61,19 @@ export default function ProfileScreen() {
   const [height, setHeight] = useState(user?.profile.height?.toString() || '');
   const [weight, setWeight] = useState(user?.profile.weight?.toString() || '');
   const [bio, setBio] = useState(user?.profile.bio || '');
+
+  // ユーザーデータが更新されたら編集フォームの状態を同期
+  useEffect(() => {
+    if (user && !isEditing) {
+      setBirthday(user.profile.birthday || '');
+      setDatePickerValue(
+        user.profile.birthday ? new Date(user.profile.birthday) : new Date(2000, 0, 1)
+      );
+      setHeight(user.profile.height?.toString() || '');
+      setWeight(user.profile.weight?.toString() || '');
+      setBio(user.profile.bio || '');
+    }
+  }, [user?.profile.birthday, user?.profile.height, user?.profile.weight, user?.profile.bio]);
 
   const handleSave = async () => {
     const { error } = await updateProfile({
@@ -210,6 +232,22 @@ export default function ProfileScreen() {
                 <Text className="text-xs text-gray-400 text-center mt-2">
                   {xpInfo.currentLevelXP.toLocaleString()} / {xpInfo.nextLevelXP.toLocaleString()} XP
                 </Text>
+                {/* 借金XP表示 */}
+                {xpInfo.negativeXP > 0 && (
+                  <View className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <View className="flex-row items-center">
+                      <Text className="text-lg mr-2">⚠️</Text>
+                      <View className="flex-1">
+                        <Text className="text-xs font-semibold text-amber-700">
+                          借金XP: {xpInfo.negativeXP.toLocaleString()} XP
+                        </Text>
+                        <Text className="text-xs text-amber-600 mt-0.5">
+                          次回の記録追加時に相殺されます
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
               </Card>
             </Animated.View>
           )}
@@ -439,6 +477,41 @@ export default function ProfileScreen() {
                   {'\n\n'}
                   これは、ビール中ジョッキ約1杯、日本酒1合、ワイングラス2杯程度に相当します。
                 </Text>
+              </View>
+            </Card>
+          </Animated.View>
+
+          {/* 法的情報・ヘルプ */}
+          <Animated.View entering={FadeInDown.delay(250).duration(600)}>
+            <Card variant="elevated" className="mb-6">
+              <Text className="text-lg font-bold text-gray-900 mb-4">
+                情報・サポート
+              </Text>
+              <View className="space-y-2">
+                <TouchableOpacity
+                  onPress={() => router.push('/legal/drinking-guide')}
+                  className="flex-row items-center py-3 border-b border-gray-100"
+                >
+                  <Text className="text-xl mr-3">📖</Text>
+                  <Text className="flex-1 text-base text-gray-800">飲酒ガイドライン</Text>
+                  <Text className="text-gray-400">›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/legal/terms')}
+                  className="flex-row items-center py-3 border-b border-gray-100"
+                >
+                  <Text className="text-xl mr-3">📋</Text>
+                  <Text className="flex-1 text-base text-gray-800">利用規約</Text>
+                  <Text className="text-gray-400">›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/legal/privacy-policy')}
+                  className="flex-row items-center py-3"
+                >
+                  <Text className="text-xl mr-3">🔒</Text>
+                  <Text className="flex-1 text-base text-gray-800">プライバシーポリシー</Text>
+                  <Text className="text-gray-400">›</Text>
+                </TouchableOpacity>
               </View>
             </Card>
           </Animated.View>

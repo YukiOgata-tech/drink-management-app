@@ -122,10 +122,26 @@ export interface Memo {
 
 // 同意関連
 export interface ConsentRecord {
-  userId: string;
-  agreedAt: string;
-  version: string;
+  // 年齢確認
+  birthday: string; // YYYY-MM-DD
+  ageVerifiedAt: string; // ISO8601
+  isAdult: boolean; // 20歳以上かどうか
+  // 利用規約同意
+  termsVersion: string; // 例: "1.0.0"
+  termsAgreedAt: string; // ISO8601
+  // プライバシーポリシー同意
+  privacyPolicyVersion: string; // 例: "1.0.0"
+  privacyPolicyAgreedAt: string; // ISO8601
+  // 飲酒注意事項確認
+  drinkingWarningAcknowledgedAt: string; // ISO8601
 }
+
+// 法的ドキュメントのバージョン管理
+export const LEGAL_VERSIONS = {
+  TERMS: '1.0.0',
+  PRIVACY_POLICY: '1.0.0',
+  DRINKING_GUIDELINES: '1.0.0',
+} as const;
 
 // 統計関連
 export interface DrinkStats {
@@ -186,6 +202,8 @@ export interface PersonalDrinkLog {
   // 同期関連（認証ユーザーのみ使用）
   supabaseId?: string; // Supabase drink_logs.id
   syncStatus?: PersonalLogSyncStatus; // デフォルト: 'local'
+  // ソフトデリート用
+  deletedAt?: string; // 削除日時（Undo可能期間中に設定）
 }
 
 // XP/レベル関連

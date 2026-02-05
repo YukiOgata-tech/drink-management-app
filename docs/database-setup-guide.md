@@ -141,13 +141,16 @@ CREATE TABLE public.event_members (
   user_id UUID NOT NULL REFERENCES public.profiles(id),
   role TEXT NOT NULL,  -- 'host', 'manager', 'member'
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  left_at TIMESTAMP WITH TIME ZONE,  -- 途中離脱時刻
   PRIMARY KEY (event_id, user_id)
 );
 ```
 
 **RLS ポリシー:**
-- ✅ イベント参加者は他の参加者を閲覧可能
+- ✅ 認証済みユーザーはメンバー情報を閲覧可能（無限再帰回避のため簡略化）
 - ✅ ホストとマネージャーがメンバー管理可能
+
+**注意:** 「同じイベントのメンバーのみ閲覧可能」なポリシーはprofilesテーブルとの相互参照で無限再帰エラーを引き起こすため、シンプルなポリシーを採用しています。
 
 ### drink_logs テーブル
 

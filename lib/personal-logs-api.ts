@@ -130,23 +130,33 @@ export async function syncPendingLogsToSupabase(
 
 /**
  * 当日の記録があるか確認（デイリーボーナス判定用）
+ * 日本時間（JST）基準で判定
  */
 export async function hasRecordedToday(userId: string): Promise<{
   hasRecorded: boolean;
   error: PersonalLogApiError | null;
 }> {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // 日本時間で今日の開始と終了を計算
+    const now = new Date();
+    const jstOffset = 9 * 60; // JST is UTC+9
+    const localOffset = now.getTimezoneOffset();
+    const jstNow = new Date(now.getTime() + (jstOffset + localOffset) * 60 * 1000);
+
+    const todayStart = new Date(jstNow);
+    todayStart.setHours(0, 0, 0, 0);
+    // JSTからUTCに戻す
+    const todayStartUTC = new Date(todayStart.getTime() - (jstOffset + localOffset) * 60 * 1000);
+
+    const tomorrowStartUTC = new Date(todayStartUTC);
+    tomorrowStartUTC.setDate(tomorrowStartUTC.getDate() + 1);
 
     const { data, error } = await supabase
       .from('drink_logs')
       .select('id')
       .eq('user_id', userId)
-      .gte('recorded_at', today.toISOString())
-      .lt('recorded_at', tomorrow.toISOString())
+      .gte('recorded_at', todayStartUTC.toISOString())
+      .lt('recorded_at', tomorrowStartUTC.toISOString())
       .limit(1);
 
     if (error) {

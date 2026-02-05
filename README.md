@@ -100,13 +100,13 @@ npm install
 
 ```bash
 # 開発サーバーの起動
-npm start
+npx expo start -c
 
 # iOS
-npm run ios
+npx expo run:ios
 
 # Android
-npm run android
+npx expo run:android
 
 # Web
 npm run web

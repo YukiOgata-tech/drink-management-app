@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,9 @@ import { useDrinksStore } from '@/stores/drinks';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDevStore } from '@/stores/dev';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { PersonalDrinkLog } from '@/types';
+import { XP_VALUES } from '@/lib/xp';
+import Animated, { FadeInDown, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
@@ -31,8 +33,17 @@ export default function DrinksScreen() {
 
   const personalLogs = usePersonalLogsStore((state) => state.logs);
   const loadPersonalLogs = usePersonalLogsStore((state) => state.loadLogs);
+  const softDeleteLog = usePersonalLogsStore((state) => state.softDeleteLog);
+  const restoreLog = usePersonalLogsStore((state) => state.restoreLog);
+  const permanentlyDeleteLog = usePersonalLogsStore((state) => state.permanentlyDeleteLog);
   const customDrinks = useCustomDrinksStore((state) => state.drinks);
   const loadCustomDrinks = useCustomDrinksStore((state) => state.loadDrinks);
+  const isGuest = useUserStore((state) => state.isGuest);
+
+  // Undo toast state
+  const [deletedLogInfo, setDeletedLogInfo] = useState<{ id: string; name: string } | null>(null);
+  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const UNDO_TIMEOUT = 5000; // 5秒間Undo可能
 
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
 
@@ -42,9 +53,55 @@ export default function DrinksScreen() {
   const [selectedDrink, setSelectedDrink] = useState<any>(null);
   const [count, setCount] = useState(1);
 
+  // ソフトデリート実行（Undo可能）
+  const handleDeleteLog = useCallback(async (log: PersonalDrinkLog) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // 既存の削除タイマーをクリア
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+    }
+
+    // ソフトデリート実行
+    await softDeleteLog(log.id);
+    setDeletedLogInfo({ id: log.id, name: log.drinkName });
+
+    // 5秒後に完全削除
+    deleteTimerRef.current = setTimeout(async () => {
+      await permanentlyDeleteLog(log.id);
+      setDeletedLogInfo(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, UNDO_TIMEOUT);
+  }, [softDeleteLog, permanentlyDeleteLog]);
+
+  // Undo処理
+  const handleUndo = useCallback(async () => {
+    if (!deletedLogInfo) return;
+
+    // タイマーをクリア
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+
+    // 復元
+    await restoreLog(deletedLogInfo.id);
+    setDeletedLogInfo(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [deletedLogInfo, restoreLog]);
+
   useEffect(() => {
     loadPersonalLogs();
     loadCustomDrinks();
+  }, []);
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) {
+        clearTimeout(deleteTimerRef.current);
+      }
+    };
   }, []);
 
   if (!user) return null;
@@ -126,9 +183,16 @@ export default function DrinksScreen() {
 
           {/* 履歴 */}
           <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mt-6">
-            <Text className="text-lg font-bold text-gray-900 mb-3">
-              最近の記録
-            </Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-lg font-bold text-gray-900">
+                最近の記録
+              </Text>
+              {recentPersonalLogs.length > 0 && (
+                <Text className="text-xs text-gray-400">
+                  長押しで削除
+                </Text>
+              )}
+            </View>
             {recentPersonalLogs.length > 0 ? (
               <View className="space-y-3">
                 {recentPersonalLogs.map((log, index) => {
@@ -146,48 +210,92 @@ export default function DrinksScreen() {
                     return emojiMap[category] || '🍺';
                   };
 
+                  // この記録がその日の最初の記録かどうかを判定
+                  const logDate = dayjs(log.recordedAt).format('YYYY-MM-DD');
+                  const isFirstOfDay = !personalLogs.some(
+                    (otherLog) =>
+                      otherLog.id !== log.id &&
+                      !otherLog.deletedAt &&
+                      dayjs(otherLog.recordedAt).format('YYYY-MM-DD') === logDate &&
+                      dayjs(otherLog.recordedAt).isBefore(dayjs(log.recordedAt))
+                  );
+
+                  // XP計算（同期済みの記録のみXPが付与されている）
+                  const earnedXP = log.syncStatus === 'synced' || log.supabaseId
+                    ? XP_VALUES.DRINK_LOG + (isFirstOfDay ? XP_VALUES.DAILY_BONUS : 0)
+                    : 0;
+
+                  // 削除済みかどうか
+                  const isDeleted = !!log.deletedAt;
+
                   return (
                     <Animated.View
                       key={log.id}
                       entering={FadeInDown.delay(250 + index * 30).duration(600)}
+                      exiting={FadeOut.duration(300)}
                     >
-                      <Card variant="outlined">
-                        <View className="flex-row items-center">
-                          <Text className="text-3xl mr-3">
-                            {getCategoryEmoji(log.drinkCategory)}
-                          </Text>
-                          <View className="flex-1">
-                            <View className="flex-row items-center">
-                              <Text className="text-base font-semibold text-gray-900">
-                                {log.drinkName}
+                      <TouchableOpacity
+                        onLongPress={() => !isDeleted && handleDeleteLog(log)}
+                        delayLongPress={500}
+                        activeOpacity={isDeleted ? 1 : 0.7}
+                        disabled={isDeleted}
+                      >
+                        <Card variant="outlined" className={isDeleted ? 'opacity-50' : ''}>
+                          <View className="flex-row items-center">
+                            <Text className={`text-3xl mr-3 ${isDeleted ? 'opacity-50' : ''}`}>
+                              {getCategoryEmoji(log.drinkCategory)}
+                            </Text>
+                            <View className="flex-1">
+                              <View className="flex-row items-center">
+                                <Text className={`text-base font-semibold ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                  {log.drinkName}
+                                </Text>
+                                {isDeleted && (
+                                  <View className="ml-2 bg-red-100 px-2 py-0.5 rounded">
+                                    <Text className="text-xs text-red-600 font-semibold">
+                                      削除済み
+                                    </Text>
+                                  </View>
+                                )}
+                                {!isDeleted && log.isCustomDrink && (
+                                  <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
+                                    <Text className="text-xs text-amber-700 font-semibold">
+                                      カスタム
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text className={`text-sm mt-1 ${isDeleted ? 'text-gray-300' : 'text-gray-500'}`}>
+                                {log.count}杯 • {log.pureAlcoholG.toFixed(1)}g
                               </Text>
-                              {log.isCustomDrink && (
-                                <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
-                                  <Text className="text-xs text-amber-700 font-semibold">
-                                    カスタム
-                                  </Text>
-                                </View>
+                              <Text className={`text-xs mt-1 ${isDeleted ? 'text-gray-300' : 'text-gray-400'}`}>
+                                {dayjs(log.recordedAt).format('M月D日 HH:mm')}
+                              </Text>
+                              {!isDeleted && log.memo && (
+                                <Text className="text-xs text-gray-600 mt-1">
+                                  💬 {log.memo}
+                                </Text>
                               )}
                             </View>
-                            <Text className="text-sm text-gray-500 mt-1">
-                              {log.count}杯 • {log.pureAlcoholG.toFixed(1)}g
-                            </Text>
-                            <Text className="text-xs text-gray-400 mt-1">
-                              {dayjs(log.recordedAt).format('M月D日 HH:mm')}
-                            </Text>
-                            {log.memo && (
-                              <Text className="text-xs text-gray-600 mt-1">
-                                💬 {log.memo}
-                              </Text>
+                            {!isDeleted && (
+                              <View className="items-end">
+                                {earnedXP > 0 && (
+                                  <View className="bg-green-100 px-2 py-1 rounded-lg mb-1">
+                                    <Text className="text-xs font-semibold text-green-600">
+                                      +{earnedXP} XP
+                                    </Text>
+                                  </View>
+                                )}
+                                <View className="bg-blue-100 px-2 py-1 rounded-lg">
+                                  <Text className="text-xs font-semibold text-blue-600">
+                                    個人
+                                  </Text>
+                                </View>
+                              </View>
                             )}
                           </View>
-                          <View className="bg-blue-100 px-2 py-1 rounded-lg">
-                            <Text className="text-xs font-semibold text-blue-600">
-                              個人
-                            </Text>
-                          </View>
-                        </View>
-                      </Card>
+                        </Card>
+                      </TouchableOpacity>
                     </Animated.View>
                   );
                 })}
@@ -375,6 +483,34 @@ export default function DrinksScreen() {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Undo Toast */}
+      {deletedLogInfo && (
+        <Animated.View
+          entering={SlideInDown.duration(300)}
+          exiting={SlideOutDown.duration(300)}
+          className="absolute bottom-8 left-4 right-4"
+        >
+          <View className="bg-gray-800 rounded-xl px-4 py-3 flex-row items-center justify-between shadow-lg">
+            <View className="flex-1 mr-3">
+              <Text className="text-white font-medium" numberOfLines={1}>
+                「{deletedLogInfo.name}」を削除しました
+              </Text>
+              {!isGuest && (
+                <Text className="text-gray-400 text-xs mt-0.5">
+                  XPが借金として記録されます
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={handleUndo}
+              className="bg-primary-500 px-4 py-2 rounded-lg"
+            >
+              <Text className="text-white font-semibold">元に戻す</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }

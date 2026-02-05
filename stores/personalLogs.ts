@@ -34,9 +34,13 @@ interface PersonalLogsState {
 
   // Actions
   loadLogs: () => Promise<void>;
-  addLog: (log: Omit<PersonalDrinkLog, 'syncStatus' | 'supabaseId'>) => Promise<{ leveledUp: boolean; newLevel?: number }>;
+  addLog: (log: Omit<PersonalDrinkLog, 'syncStatus' | 'supabaseId'>) => Promise<{ leveledUp: boolean; newLevel?: number; debtPaid: number }>;
   updateLog: (id: string, updates: Partial<PersonalDrinkLog>) => Promise<void>;
   deleteLog: (id: string) => Promise<void>;
+  // ソフトデリート関連
+  softDeleteLog: (id: string) => Promise<void>;
+  restoreLog: (id: string) => Promise<void>;
+  permanentlyDeleteLog: (id: string) => Promise<void>;
   getTodayLogs: () => Promise<PersonalDrinkLog[]>;
   getLogsByDateRange: (startDate: string, endDate: string) => Promise<PersonalDrinkLog[]>;
 
@@ -79,6 +83,7 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
 
     let leveledUp = false;
     let newLevel: number | undefined;
+    let debtPaid = 0;
 
     // 認証ユーザーの場合はSupabaseにも同期
     if (isAuthenticated && userState.user) {
@@ -102,6 +107,7 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
           const xpResult = await userState.addXP(xpAmount, 'drink_log');
           leveledUp = xpResult.leveledUp;
           newLevel = xpResult.newLevel;
+          debtPaid = xpResult.debtPaid;
         }
       } catch (error) {
         console.error('Error syncing to Supabase:', error);
@@ -113,7 +119,7 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
     const logs = await getPersonalLogs();
     set({ logs });
 
-    return { leveledUp, newLevel };
+    return { leveledUp, newLevel, debtPaid };
   },
 
   updateLog: async (id, updates) => {
@@ -135,6 +141,45 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
         if (!userState.isGuest && userState.user) {
           await addNegativeXP(userState.user.id, XP_VALUES.DRINK_LOG);
           // ユーザーストアのXP情報を更新
+          await userState.refreshXP();
+        }
+      } catch (error) {
+        console.error('Error deleting from Supabase:', error);
+      }
+    }
+
+    await deletePersonalLogStorage(id);
+    const logs = await getPersonalLogs();
+    set({ logs });
+  },
+
+  // ソフトデリート: deletedAtを設定するだけ（即座に消えない）
+  softDeleteLog: async (id) => {
+    await updatePersonalLogStorage(id, { deletedAt: new Date().toISOString() });
+    const logs = await getPersonalLogs();
+    set({ logs });
+  },
+
+  // 復元: deletedAtを削除
+  restoreLog: async (id) => {
+    await updatePersonalLogStorage(id, { deletedAt: undefined });
+    const logs = await getPersonalLogs();
+    set({ logs });
+  },
+
+  // 完全削除: Supabase削除 + ローカル削除 + XP借金
+  permanentlyDeleteLog: async (id) => {
+    const log = get().logs.find((l) => l.id === id);
+    const userState = useUserStore.getState();
+
+    // Supabaseからも削除
+    if (log?.supabaseId) {
+      try {
+        await deletePersonalLogFromSupabase(log.supabaseId);
+
+        // 認証ユーザーの場合、借金XPを追加（同期済みの記録のみ）
+        if (!userState.isGuest && userState.user) {
+          await addNegativeXP(userState.user.id, XP_VALUES.DRINK_LOG);
           await userState.refreshXP();
         }
       } catch (error) {

@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,16 +17,27 @@ import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser } from '@/types';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { XP_VALUES } from '@/lib/xp';
+import Animated, { FadeInDown, FadeIn, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
 
 dayjs.locale('ja');
 
+interface EventResultData {
+  eventCompleteXP: number;
+  drinkLogsCount: number;
+  drinkLogsXP: number;
+  totalXP: number;
+  leveledUp: boolean;
+  newLevel?: number;
+  debtPaid: number;
+}
+
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const user = useUserStore((state) => state.user);
+  const { user, isGuest, addXP } = useUserStore();
   const {
     getEventById,
     getEventMembers,
@@ -36,6 +49,8 @@ export default function EventDetailScreen() {
   const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [resultData, setResultData] = useState<EventResultData | null>(null);
 
   const event = getEventById(id);
   const members = getEventMembers(id);
@@ -80,6 +95,37 @@ export default function EventDetailScreen() {
           onPress: async () => {
             await endEvent(id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // 認証ユーザーの場合、イベント完了XPを付与
+            if (!isGuest && user) {
+              try {
+                // イベント完了XP付与
+                const xpResult = await addXP(XP_VALUES.EVENT_COMPLETE, 'event_complete');
+
+                // このイベントで自分が記録した飲酒記録数を計算
+                const myLogs = drinkLogs.filter(
+                  (log) => log.userId === user.id && log.status === 'approved'
+                );
+                const drinkLogsCount = myLogs.reduce((sum, log) => sum + log.count, 0);
+                // 飲酒記録で得たXP（既に付与済みだが表示用）
+                const drinkLogsXP = drinkLogsCount * XP_VALUES.DRINK_LOG;
+
+                // 結果データを設定
+                setResultData({
+                  eventCompleteXP: XP_VALUES.EVENT_COMPLETE,
+                  drinkLogsCount,
+                  drinkLogsXP,
+                  totalXP: XP_VALUES.EVENT_COMPLETE + drinkLogsXP,
+                  leveledUp: xpResult.leveledUp,
+                  newLevel: xpResult.newLevel,
+                  debtPaid: xpResult.debtPaid,
+                });
+                setShowResultModal(true);
+              } catch (error) {
+                console.error('Error granting event complete XP:', error);
+              }
+            }
+
             onRefresh();
           },
         },
@@ -329,6 +375,104 @@ export default function EventDetailScreen() {
           </Animated.View>
         </ScrollView>
       </View>
+
+      {/* イベント終了結果モーダル */}
+      <Modal
+        visible={showResultModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResultModal(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/50 items-center justify-center"
+          onPress={() => setShowResultModal(false)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              entering={ZoomIn.duration(300)}
+              className="bg-white mx-6 rounded-2xl p-6 min-w-[300px]"
+            >
+              <Text className="text-center text-5xl mb-4">🎉</Text>
+              <Text className="text-2xl font-bold text-center text-gray-900 mb-2">
+                イベント終了！
+              </Text>
+              <Text className="text-center text-gray-500 mb-6">
+                お疲れさまでした
+              </Text>
+
+              {resultData && (
+                <>
+                  {/* XP獲得サマリー */}
+                  <View className="bg-gray-50 rounded-xl p-4 mb-4">
+                    <Text className="text-sm font-semibold text-gray-500 mb-3">
+                      獲得XP
+                    </Text>
+                    <View className="space-y-2">
+                      <View className="flex-row justify-between">
+                        <Text className="text-gray-700">イベント完了ボーナス</Text>
+                        <Text className="font-bold text-primary-600">
+                          +{resultData.eventCompleteXP} XP
+                        </Text>
+                      </View>
+                      {resultData.drinkLogsCount > 0 && (
+                        <View className="flex-row justify-between">
+                          <Text className="text-gray-700">
+                            飲酒記録 ({resultData.drinkLogsCount}杯)
+                          </Text>
+                          <Text className="font-bold text-primary-600">
+                            +{resultData.drinkLogsXP} XP
+                          </Text>
+                        </View>
+                      )}
+                      <View className="border-t border-gray-200 pt-2 mt-2 flex-row justify-between">
+                        <Text className="font-bold text-gray-900">合計</Text>
+                        <Text className="font-bold text-xl text-primary-600">
+                          +{resultData.totalXP} XP
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* レベルアップ表示 */}
+                  {resultData.leveledUp && resultData.newLevel && (
+                    <Animated.View
+                      entering={FadeIn.delay(200).duration(400)}
+                      className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4"
+                    >
+                      <Text className="text-center text-3xl mb-2">⬆️</Text>
+                      <Text className="text-center font-bold text-yellow-800">
+                        レベルアップ！
+                      </Text>
+                      <Text className="text-center text-2xl font-bold text-yellow-600 mt-1">
+                        Lv. {resultData.newLevel}
+                      </Text>
+                    </Animated.View>
+                  )}
+
+                  {/* 借金XP返済表示 */}
+                  {resultData.debtPaid > 0 && (
+                    <Animated.View
+                      entering={FadeIn.delay(300).duration(400)}
+                      className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4"
+                    >
+                      <Text className="text-center text-green-800 text-sm">
+                        ✓ 借金XP {resultData.debtPaid} を返済しました
+                      </Text>
+                    </Animated.View>
+                  )}
+                </>
+              )}
+
+              <Button
+                title="閉じる"
+                onPress={() => setShowResultModal(false)}
+                fullWidth
+                variant="primary"
+              />
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -100,7 +100,8 @@ export const useUserStore = create<UserState>((set, get) => ({
   logout: async () => {
     const { error } = await authSignOut();
     if (!error) {
-      set({ user: null, isGuest: false });
+      // ログアウト後はゲストユーザーとして設定
+      set({ user: createGuestUser(), isGuest: true, isLoading: false });
     }
   },
 

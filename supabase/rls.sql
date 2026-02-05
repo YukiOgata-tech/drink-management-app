@@ -20,16 +20,15 @@ CREATE POLICY "Users can view own profile"
   FOR SELECT
   USING (auth.uid() = id);
 
--- イベントメンバーのプロフィールは閲覧可能
+-- イベントに参加しているユーザーのプロフィールは閲覧可能
+-- event_membersのSELECTポリシーが簡略化されているため、このポリシーは再帰しない
 CREATE POLICY "Users can view event members profiles"
   ON public.profiles
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM public.event_members em1
-      INNER JOIN public.event_members em2 ON em1.event_id = em2.event_id
-      WHERE em1.user_id = auth.uid()
-        AND em2.user_id = public.profiles.id
+      SELECT 1 FROM public.event_members em
+      WHERE em.user_id = profiles.id
     )
   );
 
@@ -87,17 +86,14 @@ CREATE POLICY "Host can delete events"
 -- 3. イベントメンバーテーブルのRLSポリシー
 -- =====================================================
 
--- イベントメンバーは同じイベントのメンバーを閲覧可能
-CREATE POLICY "Event members can view other members"
+-- 認証済みユーザーはイベントメンバーを閲覧可能
+-- 注意: 「同じイベントのメンバーのみ」にすると、profilesテーブルのポリシーと
+-- 相互参照して無限再帰エラー（42P17）が発生するため、シンプルなポリシーを採用
+CREATE POLICY "Authenticated users can view event members"
   ON public.event_members
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.event_members em
-      WHERE em.event_id = event_members.event_id
-        AND em.user_id = auth.uid()
-    )
-  );
+  TO authenticated
+  USING (true);
 
 -- ホストとマネージャーはメンバーを追加可能
 CREATE POLICY "Host and managers can add members"
