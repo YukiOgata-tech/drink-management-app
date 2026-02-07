@@ -4,10 +4,7 @@
     "slug": "drink-management",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": {
-      "light": "./assets/images/DMA-icon_light.png",
-      "dark": "./assets/images/DMA-icon_dark.png"
-    },
+    "icon": "./assets/images/DMA-icon_light.png",
     "scheme": "drinkmanagement",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,14 +12,20 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.yukiogata-411.drinkmanagement",
       "buildNumber": "1",
+      "icon": {
+        "light": "./assets/images/DMA-icon_light.png",
+        "dark": "./assets/images/DMA-icon_dark.png"
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "バーコードをスキャンして飲み物の情報を自動入力するためにカメラを使用します",
-        "CFBundleAllowMixedLocalizations": true
+        "CFBundleAllowMixedLocalizations": true,
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/DMA-icon_light.png",
+        "monochromeImage": "./assets/images/DMA-icon_dark.png",
         "backgroundColor": "#ffffff"
       },
       "versionCode": 1,
@@ -84,6 +87,19 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "186f9934-c29f-4c44-b5bb-144edcf68c00"
+      }
+    },
+    "owner": "gig-tech",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/186f9934-c29f-4c44-b5bb-144edcf68c00"
     }
   }
 }
