@@ -9,19 +9,47 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card } from '@/components/ui';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useProductsStore } from '@/stores/products';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDrinksStore } from '@/stores/drinks';
 import { useUserStore } from '@/stores/user';
-import { DrinkCategory, Product, CustomDrink, DefaultDrink, PersonalDrinkLog } from '@/types';
+import { DrinkCategory, Product, CustomDrink, DefaultDrink } from '@/types';
 import { calculatePureAlcohol } from '@/lib/products';
+import {
+  getAddPersonalCollapsedSections,
+  setAddPersonalCollapsedSection,
+} from '@/lib/storage/uiPreferences';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+
+// Android用のLayoutAnimationを有効化
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// バーコードスキャンから渡される商品情報
+type BarcodeProduct = {
+  id: string;
+  name: string;
+  brand?: string;
+  category: DrinkCategory;
+  ml: number;
+  abv: number;
+  pureAlcoholG: number;
+  emoji: string;
+  barcode: string;
+};
+
+// 最大同時選択数
+const MAX_SELECTIONS = 5;
 
 // よく使う人気ドリンクのID（表示順）
 const POPULAR_DRINK_IDS = [
@@ -56,9 +84,12 @@ const CATEGORY_OPTIONS: { value: DrinkCategory; label: string; emoji: string }[]
   { value: 'other', label: 'その他', emoji: '🍸' },
 ];
 
-type SelectedDrinkInfo = {
+// 選択されたドリンク情報（杯数付き）
+type SelectedDrinkItem = {
+  id: string; // ユニークキー用
   drink: Product | CustomDrink | DefaultDrink;
   isCustom: boolean;
+  count: number;
 };
 
 // カテゴリ別の絵文字マッピング
@@ -80,6 +111,8 @@ const getCategoryEmoji = (category: DrinkCategory): string => {
 };
 
 export default function AddPersonalDrinkScreen() {
+  const { barcodeProduct } = useLocalSearchParams<{ barcodeProduct?: string }>();
+
   const user = useUserStore((state) => state.user);
   const addLog = usePersonalLogsStore((state) => state.addLog);
   const personalLogs = usePersonalLogsStore((state) => state.logs);
@@ -93,17 +126,74 @@ export default function AddPersonalDrinkScreen() {
 
   const defaultDrinks = useDrinksStore((state) => state.defaultDrinks);
 
-  const [selectedDrink, setSelectedDrink] = useState<SelectedDrinkInfo | null>(null);
-  const [count, setCount] = useState(1);
+  // 複数選択対応
+  const [selectedDrinks, setSelectedDrinks] = useState<SelectedDrinkItem[]>([]);
   const [memo, setMemo] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<DrinkCategory>('beer');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // セクション折りたたみ状態
+  const [collapsedSections, setCollapsedSections] = useState({
+    recentDrinks: false,
+    popularDrinks: false,
+  });
 
   useEffect(() => {
     fetchProducts();
     loadCustomDrinks();
+    // 折りたたみ状態を読み込み
+    loadCollapsedSections();
   }, []);
+
+  const loadCollapsedSections = async () => {
+    const saved = await getAddPersonalCollapsedSections();
+    setCollapsedSections(saved);
+  };
+
+  const toggleSection = async (section: 'recentDrinks' | 'popularDrinks') => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const newValue = !collapsedSections[section];
+    setCollapsedSections((prev) => ({ ...prev, [section]: newValue }));
+    await setAddPersonalCollapsedSection(section, newValue);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // バーコードスキャンからの商品を処理
+  useEffect(() => {
+    if (barcodeProduct) {
+      try {
+        const product: BarcodeProduct = JSON.parse(barcodeProduct);
+        const drinkInfo: DefaultDrink = {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          ml: product.ml,
+          abv: product.abv,
+          pureAlcoholG: product.pureAlcoholG,
+          emoji: product.emoji,
+        };
+
+        // 既に選択済みでなければ追加
+        const alreadySelected = selectedDrinks.some((item) => item.drink.id === product.id);
+        if (!alreadySelected) {
+          setSelectedDrinks((prev) => [
+            ...prev,
+            {
+              id: `${product.id}_${Date.now()}`,
+              drink: drinkInfo,
+              isCustom: false,
+              count: 1,
+            },
+          ]);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch (e) {
+        console.error('Failed to parse barcode product:', e);
+      }
+    }
+  }, [barcodeProduct]);
 
   // 最近記録したドリンク（最新3件、重複除外）
   const recentDrinks: RecentDrinkInfo[] = React.useMemo(() => {
@@ -165,70 +255,142 @@ export default function AddPersonalDrinkScreen() {
     ...searchFilteredProducts.map((p) => ({ drink: p, isCustom: false })),
   ];
 
-  const handleSelectDrink = (drink: Product | CustomDrink | DefaultDrink, isCustom: boolean) => {
-    setSelectedDrink({ drink, isCustom });
-    setShowSearch(false);
+  // ドリンクが選択済みかチェック
+  const isDrinkSelected = (drinkId: string) => {
+    return selectedDrinks.some((item) => item.drink.id === drinkId);
+  };
+
+  // ドリンクを追加
+  const handleAddDrink = (drink: Product | CustomDrink | DefaultDrink, isCustom: boolean) => {
+    if (selectedDrinks.length >= MAX_SELECTIONS) {
+      Alert.alert('上限に達しました', `同時に記録できるのは${MAX_SELECTIONS}件までです`);
+      return;
+    }
+
+    if (isDrinkSelected(drink.id)) {
+      // 既に選択済みの場合は杯数を+1
+      setSelectedDrinks((prev) =>
+        prev.map((item) =>
+          item.drink.id === drink.id ? { ...item, count: item.count + 1 } : item
+        )
+      );
+    } else {
+      // 新規追加
+      setSelectedDrinks((prev) => [
+        ...prev,
+        {
+          id: `${drink.id}_${Date.now()}`,
+          drink,
+          isCustom,
+          count: 1,
+        },
+      ]);
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
+  // ドリンクを削除
+  const handleRemoveDrink = (itemId: string) => {
+    setSelectedDrinks((prev) => prev.filter((item) => item.id !== itemId));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // 杯数を変更
+  const handleChangeCount = (itemId: string, delta: number) => {
+    setSelectedDrinks((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          const newCount = Math.max(1, item.count + delta);
+          return { ...item, count: newCount };
+        }
+        return item;
+      })
+    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  // 保存処理
   const handleSave = async () => {
-    if (!selectedDrink) {
+    if (selectedDrinks.length === 0) {
       Alert.alert('エラー', '飲み物を選択してください');
       return;
     }
 
-    if (count <= 0) {
-      Alert.alert('エラー', '正しい杯数を入力してください');
-      return;
-    }
+    setIsSaving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const pureAlcoholG = calculatePureAlcohol(selectedDrink.drink.ml, selectedDrink.drink.abv) * count;
+    let totalLeveledUp = false;
+    let finalNewLevel: number | undefined;
+    let totalDebtPaid = 0;
 
-    const log = {
-      id: `personal_${Date.now()}`,
-      userId: user?.id || 'guest',
-      drinkId: selectedDrink.drink.id,
-      drinkName: selectedDrink.drink.name,
-      drinkCategory: selectedDrink.drink.category,
-      ml: selectedDrink.drink.ml,
-      abv: selectedDrink.drink.abv,
-      pureAlcoholG,
-      count,
-      memo: memo.trim() || undefined,
-      recordedAt: new Date().toISOString(),
-      isCustomDrink: selectedDrink.isCustom,
-    };
+    try {
+      // 各ドリンクを順番に保存
+      for (const item of selectedDrinks) {
+        const pureAlcoholG = calculatePureAlcohol(item.drink.ml, item.drink.abv) * item.count;
 
-    const result = await addLog(log);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const log = {
+          id: `personal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          userId: user?.id || 'guest',
+          drinkId: item.drink.id,
+          drinkName: item.drink.name,
+          drinkCategory: item.drink.category,
+          ml: item.drink.ml,
+          abv: item.drink.abv,
+          pureAlcoholG,
+          count: item.count,
+          memo: memo.trim() || undefined,
+          recordedAt: new Date().toISOString(),
+          isCustomDrink: item.isCustom,
+        };
 
-    // XP関連のフィードバック
-    if (result.leveledUp && result.newLevel) {
-      Alert.alert(
-        '🎉 レベルアップ！',
-        `レベル ${result.newLevel} になりました！`,
-        [{ text: 'やったー！', onPress: () => router.back() }]
-      );
-    } else if (result.debtPaid > 0) {
-      Alert.alert(
-        '✓ 記録を保存しました',
-        `借金XP ${result.debtPaid} を返済しました`,
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    } else {
-      router.back();
+        const result = await addLog(log);
+
+        if (result.leveledUp && result.newLevel) {
+          totalLeveledUp = true;
+          finalNewLevel = result.newLevel;
+        }
+        totalDebtPaid += result.debtPaid;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // フィードバック
+      const recordCount = selectedDrinks.length;
+      const totalDrinks = selectedDrinks.reduce((sum, item) => sum + item.count, 0);
+
+      if (totalLeveledUp && finalNewLevel) {
+        Alert.alert(
+          'レベルアップ！',
+          `${recordCount}件（${totalDrinks}杯）を記録しました！\nレベル ${finalNewLevel} になりました！`,
+          [{ text: 'やったー！', onPress: () => router.back() }]
+        );
+      } else if (totalDebtPaid > 0) {
+        Alert.alert(
+          '記録を保存しました',
+          `${recordCount}件（${totalDrinks}杯）を記録しました\n借金XP ${totalDebtPaid} を返済しました`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert(
+          '記録を保存しました',
+          `${recordCount}件（${totalDrinks}杯）を記録しました`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
+    } catch (error) {
+      Alert.alert('エラー', '記録の保存に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  // クイック選択
   const handleQuickSelect = (drink: DefaultDrink) => {
-    setSelectedDrink({ drink, isCustom: false });
-    setCount(1);
-    setMemo('');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    handleAddDrink(drink, false);
   };
 
+  // 最近の記録から選択
   const handleRecentSelect = (recent: RecentDrinkInfo) => {
-    // RecentDrinkInfoをSelectedDrinkInfo形式に変換
     const drinkInfo: DefaultDrink = {
       id: recent.id,
       name: recent.name,
@@ -238,11 +400,17 @@ export default function AddPersonalDrinkScreen() {
       pureAlcoholG: recent.pureAlcoholG,
       emoji: recent.emoji,
     };
-    setSelectedDrink({ drink: drinkInfo, isCustom: recent.isCustom });
-    setCount(1);
-    setMemo('');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    handleAddDrink(drinkInfo, recent.isCustom);
   };
+
+  // 合計純アルコール量
+  const totalPureAlcohol = selectedDrinks.reduce(
+    (sum, item) => sum + calculatePureAlcohol(item.drink.ml, item.drink.abv) * item.count,
+    0
+  );
+
+  // 合計杯数
+  const totalCount = selectedDrinks.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
@@ -253,30 +421,203 @@ export default function AddPersonalDrinkScreen() {
         {/* ヘッダー */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
           <View className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text className="text-primary-600 font-semibold text-base">
-                ← 戻る
+            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
+              <Feather name="arrow-left" size={16} color="#0284c7" />
+              <Text className="text-primary-600 font-semibold text-base ml-1">
+                戻る
               </Text>
             </TouchableOpacity>
             <Text className="text-lg font-bold text-gray-900">個人記録を追加</Text>
             <View style={{ width: 50 }} />
           </View>
+          {/* 選択件数バッジ */}
+          {selectedDrinks.length > 0 && (
+            <View className="mt-2 flex-row items-center justify-center">
+              <View className="bg-primary-100 px-3 py-1 rounded-full">
+                <Text className="text-primary-700 font-semibold text-sm">
+                  {selectedDrinks.length}件選択中（{totalCount}杯）
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+          {/* 選択中のドリンク一覧 */}
+          {selectedDrinks.length > 0 && (
+            <Animated.View entering={FadeIn.duration(300)} className="px-6 pt-4">
+              <Card variant="elevated" className="bg-primary-50">
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-base font-bold text-gray-900">
+                    選択中のドリンク
+                  </Text>
+                  <Text className="text-sm text-gray-500">
+                    最大{MAX_SELECTIONS}件
+                  </Text>
+                </View>
+
+                {selectedDrinks.map((item) => (
+                  <View
+                    key={item.id}
+                    className="flex-row items-center bg-white rounded-xl p-3 mb-2"
+                  >
+                    <Text className="text-2xl mr-2">{item.drink.emoji || '🍺'}</Text>
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
+                        {item.drink.name}
+                      </Text>
+                      <Text className="text-xs text-gray-500">
+                        {(calculatePureAlcohol(item.drink.ml, item.drink.abv) * item.count).toFixed(1)}g
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                      <TouchableOpacity
+                        onPress={() => handleChangeCount(item.id, -1)}
+                        className="bg-gray-200 w-8 h-8 rounded-full items-center justify-center"
+                      >
+                        <Text className="text-lg font-bold text-gray-700">−</Text>
+                      </TouchableOpacity>
+                      <Text className="text-lg font-bold text-gray-900 w-6 text-center">
+                        {item.count}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleChangeCount(item.id, 1)}
+                        className="bg-primary-500 w-8 h-8 rounded-full items-center justify-center"
+                      >
+                        <Text className="text-lg font-bold text-white">+</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleRemoveDrink(item.id)}
+                        className="ml-2"
+                      >
+                        <Feather name="x-circle" size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                {/* メモ */}
+                <TextInput
+                  value={memo}
+                  onChangeText={setMemo}
+                  placeholder="メモ（任意・全件共通）"
+                  className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 mt-2"
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                {/* 合計 */}
+                <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+                  <Text className="text-sm text-amber-800">
+                    合計純アルコール量: 約{' '}
+                    <Text className="font-bold">{totalPureAlcohol.toFixed(1)}g</Text>
+                    {' '}（{totalCount}杯）
+                  </Text>
+                </View>
+
+                {/* 保存ボタン */}
+                <View className="mt-3">
+                  <Button
+                    title={isSaving ? '保存中...' : `${selectedDrinks.length}件を記録`}
+                    onPress={handleSave}
+                    disabled={isSaving}
+                    fullWidth
+                  />
+                </View>
+              </Card>
+            </Animated.View>
+          )}
+
           {/* 最近記録したドリンク */}
           {recentDrinks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(50).duration(400)} className="px-6 pt-6">
-              <Text className="text-lg font-bold text-gray-900 mb-3">
-                最近記録したドリンク
-              </Text>
+              <TouchableOpacity
+                onPress={() => toggleSection('recentDrinks')}
+                className="flex-row items-center justify-between mb-3"
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center">
+                  <Text className="text-lg font-bold text-gray-900">
+                    最近記録したドリンク
+                  </Text>
+                  <View className="ml-2 bg-gray-200 px-2 py-0.5 rounded-full">
+                    <Text className="text-xs text-gray-600">{recentDrinks.length}</Text>
+                  </View>
+                </View>
+                <Feather
+                  name={collapsedSections.recentDrinks ? 'chevron-down' : 'chevron-up'}
+                  size={20}
+                  color="#6b7280"
+                />
+              </TouchableOpacity>
+              {!collapsedSections.recentDrinks && (
+                <View className="flex-row flex-wrap gap-2">
+                  {recentDrinks.map((drink) => (
+                    <TouchableOpacity
+                      key={`recent_${drink.id}_${drink.name}`}
+                      onPress={() => handleRecentSelect(drink)}
+                      className={`border rounded-xl px-4 py-3 flex-row items-center ${
+                        isDrinkSelected(drink.id)
+                          ? 'bg-primary-50 border-primary-500'
+                          : 'bg-white border-gray-200'
+                      }`}
+                      style={{ minWidth: '45%' }}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-2xl mr-2">{drink.emoji}</Text>
+                      <View className="flex-1">
+                        <View className="flex-row items-center">
+                          <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
+                            {drink.name}
+                          </Text>
+                          {drink.isCustom && (
+                            <View className="ml-1 bg-amber-100 px-1.5 py-0.5 rounded">
+                              <Text className="text-xs text-amber-700">C</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text className="text-xs text-gray-500">
+                          {drink.pureAlcoholG.toFixed(1)}g
+                        </Text>
+                      </View>
+                      {isDrinkSelected(drink.id) && (
+                        <Feather name="check-circle" size={18} color="#0ea5e9" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </Animated.View>
+          )}
+
+          {/* クイック選択: 人気ドリンク */}
+          <Animated.View entering={FadeInDown.delay(recentDrinks.length > 0 ? 100 : 50).duration(400)} className="px-6 pt-6">
+            <TouchableOpacity
+              onPress={() => toggleSection('popularDrinks')}
+              className="flex-row items-center justify-between mb-3"
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center">
+                <Text className="text-lg font-bold text-gray-900">
+                  よく使うドリンク
+                </Text>
+                <View className="ml-2 bg-gray-200 px-2 py-0.5 rounded-full">
+                  <Text className="text-xs text-gray-600">{popularDrinks.length}</Text>
+                </View>
+              </View>
+              <Feather
+                name={collapsedSections.popularDrinks ? 'chevron-down' : 'chevron-up'}
+                size={20}
+                color="#6b7280"
+              />
+            </TouchableOpacity>
+            {!collapsedSections.popularDrinks && (
               <View className="flex-row flex-wrap gap-2">
-                {recentDrinks.map((drink) => (
+                {popularDrinks.map((drink) => (
                   <TouchableOpacity
-                    key={`recent_${drink.id}_${drink.name}`}
-                    onPress={() => handleRecentSelect(drink)}
+                    key={drink.id}
+                    onPress={() => handleQuickSelect(drink)}
                     className={`border rounded-xl px-4 py-3 flex-row items-center ${
-                      selectedDrink?.drink.id === drink.id
+                      isDrinkSelected(drink.id)
                         ? 'bg-primary-50 border-primary-500'
                         : 'bg-white border-gray-200'
                     }`}
@@ -285,66 +626,57 @@ export default function AddPersonalDrinkScreen() {
                   >
                     <Text className="text-2xl mr-2">{drink.emoji}</Text>
                     <View className="flex-1">
-                      <View className="flex-row items-center">
-                        <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
-                          {drink.name}
-                        </Text>
-                        {drink.isCustom && (
-                          <View className="ml-1 bg-amber-100 px-1.5 py-0.5 rounded">
-                            <Text className="text-xs text-amber-700">C</Text>
-                          </View>
-                        )}
-                      </View>
+                      <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
+                        {drink.name}
+                      </Text>
                       <Text className="text-xs text-gray-500">
                         {drink.pureAlcoholG.toFixed(1)}g
                       </Text>
                     </View>
-                    {selectedDrink?.drink.id === drink.id && (
-                      <Text className="text-primary-500 text-lg">✓</Text>
+                    {isDrinkSelected(drink.id) && (
+                      <Feather name="check-circle" size={18} color="#0ea5e9" />
                     )}
                   </TouchableOpacity>
                 ))}
               </View>
-            </Animated.View>
-          )}
-
-          {/* クイック選択: 人気ドリンク */}
-          <Animated.View entering={FadeInDown.delay(recentDrinks.length > 0 ? 100 : 50).duration(400)} className="px-6 pt-6">
-            <Text className="text-lg font-bold text-gray-900 mb-3">
-              よく使うドリンク
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {popularDrinks.map((drink) => (
-                <TouchableOpacity
-                  key={drink.id}
-                  onPress={() => handleQuickSelect(drink)}
-                  className={`border rounded-xl px-4 py-3 flex-row items-center ${
-                    selectedDrink?.drink.id === drink.id
-                      ? 'bg-primary-50 border-primary-500'
-                      : 'bg-white border-gray-200'
-                  }`}
-                  style={{ minWidth: '45%' }}
-                  activeOpacity={0.7}
-                >
-                  <Text className="text-2xl mr-2">{drink.emoji}</Text>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
-                      {drink.name}
-                    </Text>
-                    <Text className="text-xs text-gray-500">
-                      {drink.pureAlcoholG.toFixed(1)}g
-                    </Text>
-                  </View>
-                  {selectedDrink?.drink.id === drink.id && (
-                    <Text className="text-primary-500 text-lg">✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+            )}
           </Animated.View>
 
-          {/* 選択して記録 */}
+          {/* バーコードスキャン */}
           <Animated.View entering={FadeInDown.delay(recentDrinks.length > 0 ? 150 : 100).duration(400)} className="px-6 pt-6">
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/drinks/barcode-scan')}
+              className="rounded-xl py-4 px-5 flex-row items-center"
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: '#f97316',
+                shadowColor: '#ea580c',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.4,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+            >
+              <View
+                className="w-12 h-12 rounded-full items-center justify-center mr-4"
+                style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
+              >
+                <Feather name="maximize" size={24} color="#ffffff" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-white font-bold text-base">
+                  バーコードで追加
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.85)' }} className="text-sm mt-0.5">
+                  缶チューハイなどをスキャンして記録
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* 選んで記録 */}
+          <Animated.View entering={FadeInDown.delay(recentDrinks.length > 0 ? 200 : 150).duration(400)} className="px-6 pt-6">
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-lg font-bold text-gray-900">
                 選んで記録
@@ -359,101 +691,20 @@ export default function AddPersonalDrinkScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* 選択中のドリンク or 選択ボタン */}
-            {selectedDrink ? (
-              <Animated.View entering={FadeIn.duration(300)}>
-                <Card variant="elevated" className="bg-primary-50 border-primary-200">
-                  <View className="flex-row items-center mb-4">
-                    <Text className="text-3xl mr-3">{selectedDrink.drink.emoji || '🍺'}</Text>
-                    <View className="flex-1">
-                      <View className="flex-row items-center">
-                        <Text className="text-lg font-bold text-gray-900">
-                          {selectedDrink.drink.name}
-                        </Text>
-                        {selectedDrink.isCustom && (
-                          <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
-                            <Text className="text-xs text-amber-700 font-semibold">
-                              カスタム
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text className="text-sm text-gray-600">
-                        {selectedDrink.drink.ml}ml • {selectedDrink.drink.abv}%
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => setShowSearch(true)}
-                      className="bg-white px-3 py-2 rounded-lg border border-gray-300"
-                    >
-                      <Text className="text-sm text-gray-700">変更</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* 杯数選択 */}
-                  <View className="flex-row items-center justify-between mb-4 bg-white rounded-xl p-3">
-                    <Text className="text-base font-semibold text-gray-900">杯数</Text>
-                    <View className="flex-row items-center gap-3">
-                      <TouchableOpacity
-                        onPress={() => {
-                          setCount(Math.max(1, count - 1));
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                        className="bg-gray-200 w-10 h-10 rounded-full items-center justify-center"
-                      >
-                        <Text className="text-xl font-bold text-gray-700">−</Text>
-                      </TouchableOpacity>
-                      <Text className="text-2xl font-bold text-gray-900 w-10 text-center">
-                        {count}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setCount(count + 1);
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                        className="bg-primary-500 w-10 h-10 rounded-full items-center justify-center"
-                      >
-                        <Text className="text-xl font-bold text-white">+</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* メモ */}
-                  <View className="mb-4">
-                    <TextInput
-                      value={memo}
-                      onChangeText={setMemo}
-                      placeholder="メモ（任意）"
-                      className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  </View>
-
-                  {/* 純アルコール量 */}
-                  <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-                    <Text className="text-sm text-amber-800">
-                      純アルコール量: 約{' '}
-                      <Text className="font-bold">
-                        {(calculatePureAlcohol(selectedDrink.drink.ml, selectedDrink.drink.abv) * count).toFixed(1)}g
-                      </Text>
-                    </Text>
-                  </View>
-
-                  {/* 保存ボタン */}
-                  <Button title="記録を保存" onPress={handleSave} fullWidth />
-                </Card>
-              </Animated.View>
-            ) : (
-              <TouchableOpacity
-                onPress={() => setShowSearch(true)}
-                className="bg-white border-2 border-dashed border-gray-300 rounded-xl py-8 items-center"
-                activeOpacity={0.7}
-              >
-                <Text className="text-4xl mb-2">🔍</Text>
-                <Text className="text-gray-600 font-semibold">タップして飲み物を検索</Text>
-                <Text className="text-gray-400 text-sm mt-1">カテゴリ別・商品名で探せます</Text>
-              </TouchableOpacity>
-            )}
+            {/* 検索ボタン */}
+            <TouchableOpacity
+              onPress={() => setShowSearch(true)}
+              className="bg-white border-2 border-dashed border-gray-300 rounded-xl py-6 items-center"
+              activeOpacity={0.7}
+            >
+              <View className="w-14 h-14 bg-gray-100 rounded-full items-center justify-center mb-2">
+                <Feather name="search" size={28} color="#6b7280" />
+              </View>
+              <Text className="text-gray-600 font-semibold">タップして飲み物を検索</Text>
+              <Text className="text-gray-400 text-sm mt-1">
+                カテゴリ別・商品名で探せます
+              </Text>
+            </TouchableOpacity>
           </Animated.View>
 
           {/* 検索モード */}
@@ -520,7 +771,9 @@ export default function AddPersonalDrinkScreen() {
                   </View>
                 ) : allSearchDrinks.length === 0 ? (
                   <View className="items-center py-8">
-                    <Text className="text-4xl mb-2">🔍</Text>
+                    <View className="w-14 h-14 bg-gray-100 rounded-full items-center justify-center mb-2">
+                      <Feather name="search" size={28} color="#9ca3af" />
+                    </View>
                     <Text className="text-gray-500">該当する商品がありません</Text>
                   </View>
                 ) : (
@@ -533,8 +786,12 @@ export default function AddPersonalDrinkScreen() {
                       {allSearchDrinks.slice(0, 10).map(({ drink, isCustom }) => (
                         <TouchableOpacity
                           key={drink.id}
-                          onPress={() => handleSelectDrink(drink, isCustom)}
-                          className="flex-row items-center bg-gray-50 rounded-xl p-3"
+                          onPress={() => handleAddDrink(drink, isCustom)}
+                          className={`flex-row items-center rounded-xl p-3 ${
+                            isDrinkSelected(drink.id)
+                              ? 'bg-primary-50 border border-primary-300'
+                              : 'bg-gray-50'
+                          }`}
                           activeOpacity={0.7}
                         >
                           <Text className="text-2xl mr-3">{drink.emoji || '🍺'}</Text>
@@ -555,7 +812,17 @@ export default function AddPersonalDrinkScreen() {
                               {drink.ml}ml • {drink.abv}%
                             </Text>
                           </View>
-                          <Text className="text-primary-600 font-semibold">選択</Text>
+                          {isDrinkSelected(drink.id) ? (
+                            <View className="flex-row items-center">
+                              <Text className="text-primary-600 font-semibold mr-1">追加済</Text>
+                              <Feather name="check-circle" size={16} color="#0284c7" />
+                            </View>
+                          ) : (
+                            <View className="flex-row items-center">
+                              <Feather name="plus-circle" size={16} color="#0284c7" />
+                              <Text className="text-primary-600 font-semibold ml-1">追加</Text>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       ))}
                     </View>

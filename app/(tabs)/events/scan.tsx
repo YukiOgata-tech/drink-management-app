@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card } from '@/components/ui';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -58,7 +59,9 @@ export default function ScanScreen() {
         <View style={styles.centerContent}>
           <Animated.View entering={FadeIn.duration(300)}>
             <Card variant="elevated" style={styles.permissionCard}>
-              <Text style={styles.permissionIcon}>📷</Text>
+              <View style={styles.permissionIcon}>
+                <Feather name="camera" size={48} color="#6b7280" />
+              </View>
               <Text style={styles.permissionTitle}>カメラへのアクセス</Text>
               <Text style={styles.permissionDescription}>
                 QRコードをスキャンするにはカメラへのアクセスが必要です
@@ -104,7 +107,10 @@ export default function ScanScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Text style={styles.backButtonText}>← 戻る</Text>
+            <View style={styles.backButtonContent}>
+              <Feather name="arrow-left" size={16} color="#0ea5e9" />
+              <Text style={styles.backButtonText}>戻る</Text>
+            </View>
           </TouchableOpacity>
           <Text style={styles.title}>QRコードをスキャン</Text>
         </SafeAreaView>
@@ -159,7 +165,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   permissionIcon: {
-    fontSize: 48,
     marginBottom: 16,
   },
   permissionTitle: {
@@ -191,6 +196,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginBottom: 16,
+  },
+  backButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   backButtonText: {
     color: '#0ea5e9',

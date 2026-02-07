@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { Event, EventMember } from '@/types';
 import * as EventsAPI from '@/lib/events';
 
+// 空配列の安定した参照（再レンダリング防止）
+const EMPTY_MEMBERS: EventMember[] = [];
+
 interface EventsState {
   events: Event[];
   eventMembers: Map<string, EventMember[]>; // eventId -> members
@@ -110,13 +113,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     }
 
     if (event) {
-      // 自分をホストとして追加
-      await EventsAPI.addEventMember({
-        eventId: event.id,
-        userId: params.hostId,
-        role: 'host',
-      });
-
+      // ホストはDBトリガーで自動的にメンバーとして追加される
       set((state) => ({
         events: [event, ...state.events],
         loading: false,
@@ -231,5 +228,5 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   getEventById: (id) => get().events.find((event) => event.id === id),
 
-  getEventMembers: (eventId) => get().eventMembers.get(eventId) || [],
+  getEventMembers: (eventId) => get().eventMembers.get(eventId) ?? EMPTY_MEMBERS,
 }));

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '@/components/ui';
 
 interface RankingItem {
@@ -16,10 +17,13 @@ interface RankingCardProps {
   isCurrentUser?: boolean;
 }
 
-export function RankingCard({ item, type, isCurrentUser = false }: RankingCardProps) {
-  const rankEmojis = ['🥇', '🥈', '🥉'];
-  const rankEmoji = item.rank <= 3 ? rankEmojis[item.rank - 1] : `${item.rank}位`;
+const rankConfig = [
+  { color: '#eab308', bgColor: '#fef9c3', iconColor: '#ca8a04' }, // 1st - gold
+  { color: '#6b7280', bgColor: '#f3f4f6', iconColor: '#4b5563' }, // 2nd - silver
+  { color: '#d97706', bgColor: '#fef3c7', iconColor: '#b45309' }, // 3rd - bronze
+];
 
+export function RankingCard({ item, type, isCurrentUser = false }: RankingCardProps) {
   const valueLabel = {
     total: '杯',
     alcohol: 'g',
@@ -33,19 +37,41 @@ export function RankingCard({ item, type, isCurrentUser = false }: RankingCardPr
     return 'text-gray-700';
   };
 
+  const getRankDisplay = (rank: number) => {
+    if (rank <= 3) {
+      return (
+        <View
+          className="w-8 h-8 rounded-full items-center justify-center mr-3"
+          style={{ backgroundColor: rankConfig[rank - 1].bgColor }}
+        >
+          <Feather name="award" size={18} color={rankConfig[rank - 1].iconColor} />
+        </View>
+      );
+    }
+    return (
+      <View className="w-8 h-8 rounded-full items-center justify-center mr-3 bg-gray-100">
+        <Text className="text-sm font-bold text-gray-600">{rank}</Text>
+      </View>
+    );
+  };
+
   return (
     <Card
       variant={isCurrentUser ? 'elevated' : 'outlined'}
       className={isCurrentUser ? 'border-2 border-primary-500 bg-primary-50' : ''}
     >
       <View className="flex-row items-center">
-        <Text className={`text-2xl font-bold mr-3 ${getRankColor(item.rank)}`}>
-          {rankEmoji}
-        </Text>
-        <Image
-          source={{ uri: item.userAvatar }}
-          className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3"
-        />
+        {getRankDisplay(item.rank)}
+        {item.userAvatar ? (
+          <Image
+            source={{ uri: item.userAvatar }}
+            className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3"
+          />
+        ) : (
+          <View className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3 bg-primary-100 items-center justify-center">
+            <Feather name="user" size={24} color="#0ea5e9" />
+          </View>
+        )}
         <View className="flex-1">
           <Text className="text-base font-semibold text-gray-900">
             {item.userName}
@@ -63,8 +89,11 @@ export function RankingCard({ item, type, isCurrentUser = false }: RankingCardPr
           </Text>
         </View>
         {item.rank <= 3 && (
-          <View className="w-16 h-16 items-center justify-center">
-            <Text className="text-4xl">{rankEmoji}</Text>
+          <View
+            className="w-14 h-14 rounded-full items-center justify-center"
+            style={{ backgroundColor: rankConfig[item.rank - 1].bgColor }}
+          >
+            <Feather name="award" size={28} color={rankConfig[item.rank - 1].iconColor} />
           </View>
         )}
       </View>

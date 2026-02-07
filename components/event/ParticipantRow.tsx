@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { EventMember } from '@/types';
 
 interface ParticipantRowProps {
@@ -11,6 +12,12 @@ interface ParticipantRowProps {
   onPress?: () => void;
 }
 
+const roleConfig = {
+  host: { label: 'ホスト', icon: 'star' as const, iconColor: '#b45309', bg: 'bg-amber-100', text: 'text-amber-700' },
+  manager: { label: '管理者', icon: 'shield' as const, iconColor: '#1d4ed8', bg: 'bg-blue-100', text: 'text-blue-700' },
+  member: { label: 'メンバー', icon: 'user' as const, iconColor: '#374151', bg: 'bg-gray-100', text: 'text-gray-700' },
+};
+
 export function ParticipantRow({
   member,
   userName,
@@ -19,12 +26,6 @@ export function ParticipantRow({
   totalAlcohol = 0,
   onPress,
 }: ParticipantRowProps) {
-  const roleConfig = {
-    host: { label: 'ホスト', emoji: '👑', bg: 'bg-amber-100', text: 'text-amber-700' },
-    manager: { label: '管理者', emoji: '⭐', bg: 'bg-blue-100', text: 'text-blue-700' },
-    member: { label: 'メンバー', emoji: '👤', bg: 'bg-gray-100', text: 'text-gray-700' },
-  };
-
   const role = roleConfig[member.role];
   const isActive = !member.leftAt;
 
@@ -41,7 +42,7 @@ export function ParticipantRow({
         />
       ) : (
         <View className="w-12 h-12 rounded-full border-2 border-gray-200 mr-3 bg-primary-100 items-center justify-center">
-          <Text className="text-xl">👤</Text>
+          <Feather name="user" size={24} color="#0ea5e9" />
         </View>
       )}
       <View className="flex-1">
@@ -49,9 +50,10 @@ export function ParticipantRow({
           <Text className="text-base font-semibold text-gray-900">
             {userName}
           </Text>
-          <View className={`px-2 py-0.5 rounded-full ${role.bg}`}>
-            <Text className={`text-xs font-semibold ${role.text}`}>
-              {role.emoji} {role.label}
+          <View className={`flex-row items-center px-2 py-0.5 rounded-full ${role.bg}`}>
+            <Feather name={role.icon} size={10} color={role.iconColor} />
+            <Text className={`text-xs font-semibold ${role.text} ml-1`}>
+              {role.label}
             </Text>
           </View>
           {!isActive && (

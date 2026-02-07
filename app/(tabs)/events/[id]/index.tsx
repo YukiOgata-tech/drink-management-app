@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   Alert,
   Modal,
   Pressable,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button, Card } from '@/components/ui';
 import { DrinkLogCard, ParticipantRow } from '@/components/event';
 import { useUserStore } from '@/stores/user';
@@ -20,6 +23,7 @@ import { DrinkLogWithUser } from '@/types';
 import { XP_VALUES } from '@/lib/xp';
 import Animated, { FadeInDown, FadeIn, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
 
@@ -43,6 +47,7 @@ export default function EventDetailScreen() {
     getEventMembers,
     fetchEventById,
     fetchEventMembers,
+    updateEvent,
     endEvent,
   } = useEventsStore();
 
@@ -51,13 +56,20 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultData, setResultData] = useState<EventResultData | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const event = getEventById(id);
   const members = getEventMembers(id);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  // 画面がフォーカスされるたびにデータを再取得
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [id])
+  );
 
   const loadData = async () => {
     setLoading(true);
@@ -123,14 +135,47 @@ export default function EventDetailScreen() {
                 setShowResultModal(true);
               } catch (error) {
                 console.error('Error granting event complete XP:', error);
+                // XP付与エラーでもイベント一覧に戻る
+                router.replace('/(tabs)/events');
               }
+            } else {
+              // ゲストユーザーはXP無しでイベント一覧に戻る
+              router.replace('/(tabs)/events');
             }
-
-            onRefresh();
           },
         },
       ]
     );
+  };
+
+  const openEditModal = () => {
+    if (event) {
+      setEditTitle(event.title);
+      setEditDescription(event.description || '');
+      setShowEditModal(true);
+    }
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!editTitle.trim()) {
+      Alert.alert('エラー', 'イベント名を入力してください');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await updateEvent(id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || undefined,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowEditModal(false);
+      await fetchEventById(id);
+    } catch (error) {
+      Alert.alert('エラー', '更新に失敗しました');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   if (!user || !event) {
@@ -158,24 +203,70 @@ export default function EventDetailScreen() {
       <View className="flex-1">
         {/* ヘッダー */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
-          <TouchableOpacity onPress={() => router.back()} className="mb-2">
-            <Text className="text-primary-600 font-semibold text-base">
-              ← 戻る
-            </Text>
-          </TouchableOpacity>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1">
-              <Text className="text-2xl font-bold text-gray-900">
-                {event.title}
+          <View className="flex-row items-center justify-between mb-2">
+            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
+              <Feather name="arrow-left" size={16} color="#0284c7" />
+              <Text className="text-primary-600 font-semibold text-base ml-1">
+                戻る
               </Text>
+            </TouchableOpacity>
+            {isHost && isActive && (
+              <TouchableOpacity onPress={handleEndEvent}>
+                <Text className="text-red-500 font-semibold text-base">
+                  終了
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1">
+              <View className="flex-row items-center">
+                <Text className="text-2xl font-bold text-gray-900 flex-1">
+                  {event.title}
+                </Text>
+                {isHost && isActive && (
+                  <TouchableOpacity
+                    onPress={openEditModal}
+                    className="ml-2 p-2 bg-gray-100 rounded-full"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="edit-2" size={16} color="#6b7280" />
+                  </TouchableOpacity>
+                )}
+              </View>
               {event.description && (
                 <Text className="text-sm text-gray-500 mt-1">
                   {event.description}
                 </Text>
               )}
+              {/* 開始日時と記録ルール */}
+              <View className="flex-row flex-wrap items-center mt-2 gap-2">
+                <View className="flex-row items-center bg-gray-100 rounded-full px-3 py-1">
+                  <Feather name="calendar" size={12} color="#374151" style={{ marginRight: 4 }} />
+                  <Text className="text-xs text-gray-700">
+                    {dayjs(event.startedAt).format('M/D (ddd) HH:mm')}
+                  </Text>
+                </View>
+                <View className="flex-row items-center bg-gray-100 rounded-full px-3 py-1">
+                  <Feather
+                    name={event.recordingRule === 'self' ? 'edit-3' : event.recordingRule === 'host_only' ? 'shield' : 'users'}
+                    size={12}
+                    color="#374151"
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text className="text-xs text-gray-700">
+                    {event.recordingRule === 'self'
+                      ? '各自入力'
+                      : event.recordingRule === 'host_only'
+                      ? 'ホスト管理'
+                      : `同意制(${event.requiredApprovals}人)`}
+                  </Text>
+                </View>
+              </View>
             </View>
             <View
-              className={`px-3 py-1 rounded-full ${
+              className={`px-3 py-1 rounded-full ml-2 ${
                 isActive ? 'bg-green-100' : 'bg-gray-100'
               }`}
             >
@@ -192,6 +283,7 @@ export default function EventDetailScreen() {
 
         <ScrollView
           className="flex-1 px-6 py-6"
+          contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -204,17 +296,10 @@ export default function EventDetailScreen() {
                   アクション
                 </Text>
                 <View className="space-y-2">
-                  <Button
-                    title="招待する"
-                    icon={<Text className="text-xl">📩</Text>}
-                    onPress={() => router.push(`/(tabs)/events/${id}/invite`)}
-                    fullWidth
-                    variant="outline"
-                  />
                   {(event.recordingRule === 'self' || canManage) && (
                     <Button
                       title="飲酒記録を追加"
-                      icon={<Text className="text-xl">🍺</Text>}
+                      icon={<Feather name="plus-circle" size={20} color="#ffffff" />}
                       onPress={() =>
                         router.push(`/(tabs)/events/${id}/add-drink`)
                       }
@@ -225,7 +310,7 @@ export default function EventDetailScreen() {
                   {event.recordingRule === 'consensus' && pendingCount > 0 && (
                     <Button
                       title={`承認待ち (${pendingCount})`}
-                      icon={<Text className="text-xl">⏳</Text>}
+                      icon={<Feather name="clock" size={20} color="#ffffff" />}
                       onPress={() =>
                         router.push(`/(tabs)/events/${id}/approvals`)
                       }
@@ -233,77 +318,35 @@ export default function EventDetailScreen() {
                       variant="secondary"
                     />
                   )}
-                  <Button
-                    title="ランキングを見る"
-                    icon={<Text className="text-xl">🏆</Text>}
-                    onPress={() => router.push(`/(tabs)/events/${id}/ranking`)}
-                    fullWidth
-                    variant="outline"
-                  />
-                  {isHost && isActive && (
-                    <Button
-                      title="イベントを終了"
-                      icon={<Text className="text-xl">🏁</Text>}
-                      onPress={handleEndEvent}
-                      fullWidth
-                      variant="outline"
-                    />
-                  )}
                 </View>
               </Card>
             </Animated.View>
           )}
 
-          {/* イベント情報 */}
+          {/* 招待コード */}
           <Animated.View
             entering={FadeInDown.delay(150).duration(600)}
             className="mb-6"
           >
-            <Card variant="elevated">
-              <Text className="text-lg font-bold text-gray-900 mb-3">
-                イベント情報
-              </Text>
-              <View className="space-y-3">
-                <InfoRow
-                  icon="📅"
-                  label="開始日時"
-                  value={dayjs(event.startedAt).format(
-                    'YYYY年M月D日 (ddd) HH:mm'
-                  )}
-                />
-                {event.endedAt && (
-                  <InfoRow
-                    icon="🏁"
-                    label="終了日時"
-                    value={dayjs(event.endedAt).format(
-                      'YYYY年M月D日 (ddd) HH:mm'
-                    )}
-                  />
-                )}
-                <InfoRow
-                  icon={
-                    event.recordingRule === 'self'
-                      ? '✍️'
-                      : event.recordingRule === 'host_only'
-                      ? '👑'
-                      : '🤝'
-                  }
-                  label="記録ルール"
-                  value={
-                    event.recordingRule === 'self'
-                      ? '各自入力'
-                      : event.recordingRule === 'host_only'
-                      ? 'ホスト管理'
-                      : `同意制 (${event.requiredApprovals}人承認)`
-                  }
-                />
-                <InfoRow
-                  icon="🔗"
-                  label="招待コード"
-                  value={event.inviteCode}
-                />
-              </View>
-            </Card>
+            <TouchableOpacity
+              onPress={() => router.push(`/(tabs)/events/${id}/invite`)}
+              activeOpacity={0.7}
+            >
+              <Card variant="elevated">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center">
+                    <Feather name="link-2" size={18} color="#6b7280" style={{ marginRight: 8 }} />
+                    <Text className="text-sm text-gray-500">招待コード</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Text className="text-xl font-bold text-primary-600 tracking-widest mr-2">
+                      {event.inviteCode || '---'}
+                    </Text>
+                    <Feather name="chevron-right" size={18} color="#9ca3af" />
+                  </View>
+                </View>
+              </Card>
+            </TouchableOpacity>
           </Animated.View>
 
           {/* 参加者 */}
@@ -346,9 +389,19 @@ export default function EventDetailScreen() {
 
           {/* 最近の記録 */}
           <Animated.View entering={FadeInDown.delay(250).duration(600)}>
-            <Text className="text-lg font-bold text-gray-900 mb-3">
-              最近の記録
-            </Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-lg font-bold text-gray-900">
+                最近の記録
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push(`/(tabs)/events/${id}/ranking`)}
+                className="flex-row items-center bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1.5"
+                activeOpacity={0.7}
+              >
+                <Feather name="award" size={14} color="#a16207" style={{ marginRight: 4 }} />
+                <Text className="text-sm font-semibold text-yellow-700">ランキング</Text>
+              </TouchableOpacity>
+            </View>
             {drinkLogs.length > 0 ? (
               <View className="space-y-3">
                 {drinkLogs.slice(0, 10).map((log, index) => (
@@ -367,7 +420,9 @@ export default function EventDetailScreen() {
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-8">
-                  <Text className="text-4xl mb-2">📝</Text>
+                  <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
+                    <Feather name="file-text" size={32} color="#9ca3af" />
+                  </View>
                   <Text className="text-gray-500">まだ記録がありません</Text>
                 </View>
               </Card>
@@ -381,18 +436,28 @@ export default function EventDetailScreen() {
         visible={showResultModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowResultModal(false)}
+        onRequestClose={() => {
+          setShowResultModal(false);
+          router.replace('/(tabs)/events');
+        }}
       >
         <Pressable
           className="flex-1 bg-black/50 items-center justify-center"
-          onPress={() => setShowResultModal(false)}
+          onPress={() => {
+            setShowResultModal(false);
+            router.replace('/(tabs)/events');
+          }}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
             <Animated.View
               entering={ZoomIn.duration(300)}
               className="bg-white mx-6 rounded-2xl p-6 min-w-[300px]"
             >
-              <Text className="text-center text-5xl mb-4">🎉</Text>
+              <View className="items-center mb-4">
+                <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center">
+                  <Feather name="check-circle" size={48} color="#16a34a" />
+                </View>
+              </View>
               <Text className="text-2xl font-bold text-center text-gray-900 mb-2">
                 イベント終了！
               </Text>
@@ -439,7 +504,9 @@ export default function EventDetailScreen() {
                       entering={FadeIn.delay(200).duration(400)}
                       className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4"
                     >
-                      <Text className="text-center text-3xl mb-2">⬆️</Text>
+                      <View className="items-center mb-2">
+                        <Feather name="trending-up" size={32} color="#ca8a04" />
+                      </View>
                       <Text className="text-center font-bold text-yellow-800">
                         レベルアップ！
                       </Text>
@@ -455,9 +522,12 @@ export default function EventDetailScreen() {
                       entering={FadeIn.delay(300).duration(400)}
                       className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4"
                     >
-                      <Text className="text-center text-green-800 text-sm">
-                        ✓ 借金XP {resultData.debtPaid} を返済しました
-                      </Text>
+                      <View className="flex-row items-center justify-center">
+                        <Feather name="check-circle" size={14} color="#166534" />
+                        <Text className="text-center text-green-800 text-sm ml-1">
+                          借金XP {resultData.debtPaid} を返済しました
+                        </Text>
+                      </View>
                     </Animated.View>
                   )}
                 </>
@@ -465,7 +535,10 @@ export default function EventDetailScreen() {
 
               <Button
                 title="閉じる"
-                onPress={() => setShowResultModal(false)}
+                onPress={() => {
+                  setShowResultModal(false);
+                  router.replace('/(tabs)/events');
+                }}
                 fullWidth
                 variant="primary"
               />
@@ -473,28 +546,85 @@ export default function EventDetailScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
-  );
-}
 
-function InfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View className="flex-row items-start">
-      <Text className="text-xl mr-3">{icon}</Text>
-      <View className="flex-1">
-        <Text className="text-sm text-gray-500">{label}</Text>
-        <Text className="text-base font-semibold text-gray-900 mt-1">
-          {value}
-        </Text>
-      </View>
-    </View>
+      {/* イベント編集モーダル */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <Pressable
+            className="flex-1 bg-black/50 items-center justify-center"
+            onPress={() => setShowEditModal(false)}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              className="bg-white mx-6 rounded-2xl p-6 w-[90%] max-w-[400px]"
+            >
+              <Text className="text-xl font-bold text-gray-900 mb-4">
+                イベントを編集
+              </Text>
+
+              {/* イベント名 */}
+              <View className="mb-4">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">
+                  イベント名 *
+                </Text>
+                <TextInput
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="例: 忘年会"
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+
+              {/* 説明文 */}
+              <View className="mb-6">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">
+                  説明文（任意）
+                </Text>
+                <TextInput
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  placeholder="例: 会社の忘年会です"
+                  multiline
+                  numberOfLines={3}
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base"
+                  placeholderTextColor="#9ca3af"
+                  style={{ minHeight: 80, textAlignVertical: 'top' }}
+                />
+              </View>
+
+              {/* ボタン */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Button
+                    title="キャンセル"
+                    onPress={() => setShowEditModal(false)}
+                    variant="outline"
+                    fullWidth
+                  />
+                </View>
+                <View className="flex-1">
+                  <Button
+                    title={isUpdating ? '保存中...' : '保存'}
+                    onPress={handleUpdateEvent}
+                    variant="primary"
+                    fullWidth
+                    disabled={isUpdating}
+                  />
+                </View>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+    </SafeAreaView>
   );
 }

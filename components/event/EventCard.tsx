@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Event } from '@/types';
 import { Card } from '@/components/ui';
 import dayjs from 'dayjs';
@@ -13,25 +14,25 @@ interface EventCardProps {
   onPress?: () => void;
 }
 
+const recordingRuleIcon: Record<string, keyof typeof Feather.glyphMap> = {
+  self: 'edit-3',
+  host_only: 'shield',
+  consensus: 'users',
+};
+
+const recordingRuleName = {
+  self: '各自入力',
+  host_only: 'ホスト管理',
+  consensus: '同意制',
+};
+
 export function EventCard({ event, isHost = false, onPress }: EventCardProps) {
-  const recordingRuleEmoji = {
-    self: '✍️',
-    host_only: '👑',
-    consensus: '🤝',
-  };
-
-  const recordingRuleName = {
-    self: '各自入力',
-    host_only: 'ホスト管理',
-    consensus: '同意制',
-  };
-
   return (
     <TouchableOpacity onPress={onPress} disabled={!onPress}>
       <Card variant="elevated">
         <View className="flex-row items-start">
           <View className="bg-secondary-100 rounded-full w-14 h-14 items-center justify-center mr-4">
-            <Text className="text-3xl">🎉</Text>
+            <Feather name="calendar" size={28} color="#f97316" />
           </View>
           <View className="flex-1">
             <View className="flex-row items-center justify-between mb-2">
@@ -59,15 +60,13 @@ export function EventCard({ event, isHost = false, onPress }: EventCardProps) {
             )}
             <View className="flex-row items-center gap-4 mb-2">
               <View className="flex-row items-center">
-                <Text className="text-xs text-gray-500">📅</Text>
+                <Feather name="clock" size={12} color="#6b7280" />
                 <Text className="text-xs text-gray-500 ml-1">
                   {dayjs(event.startedAt).format('M月D日 (ddd) HH:mm')}
                 </Text>
               </View>
               <View className="flex-row items-center">
-                <Text className="text-xs text-gray-500">
-                  {recordingRuleEmoji[event.recordingRule]}
-                </Text>
+                <Feather name={recordingRuleIcon[event.recordingRule]} size={12} color="#6b7280" />
                 <Text className="text-xs text-gray-500 ml-1">
                   {recordingRuleName[event.recordingRule]}
                 </Text>

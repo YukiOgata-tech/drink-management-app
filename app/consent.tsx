@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card } from '@/components/ui';
 import { useConsentStore } from '@/stores/consent';
 import { LEGAL_VERSIONS } from '@/types';
@@ -331,7 +332,7 @@ export default function ConsentScreen() {
                   className="flex-row items-start"
                 >
                   <View className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${agreedToTerms ? 'bg-primary-500 border-primary-500' : 'border-gray-300'}`}>
-                    {agreedToTerms && <Text className="text-white text-sm">✓</Text>}
+                    {agreedToTerms && <Feather name="check" size={14} color="#ffffff" />}
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-gray-800">
@@ -352,7 +353,7 @@ export default function ConsentScreen() {
                   className="flex-row items-start"
                 >
                   <View className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${agreedToPrivacy ? 'bg-primary-500 border-primary-500' : 'border-gray-300'}`}>
-                    {agreedToPrivacy && <Text className="text-white text-sm">✓</Text>}
+                    {agreedToPrivacy && <Feather name="check" size={14} color="#ffffff" />}
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-gray-800">
@@ -373,7 +374,7 @@ export default function ConsentScreen() {
                   className="flex-row items-start"
                 >
                   <View className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${acknowledgedWarning ? 'bg-primary-500 border-primary-500' : 'border-gray-300'}`}>
-                    {acknowledgedWarning && <Text className="text-white text-sm">✓</Text>}
+                    {acknowledgedWarning && <Feather name="check" size={14} color="#ffffff" />}
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-gray-800">

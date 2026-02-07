@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
@@ -96,15 +97,15 @@ export default function JoinEventScreen() {
     return null;
   }
 
-  const recordingRuleConfig = {
-    self: { emoji: '✍️', name: '各自入力', description: '各参加者が自由に記録' },
+  const recordingRuleConfig: Record<string, { icon: keyof typeof Feather.glyphMap; name: string; description: string }> = {
+    self: { icon: 'edit-3', name: '各自入力', description: '各参加者が自由に記録' },
     host_only: {
-      emoji: '👑',
+      icon: 'shield',
       name: 'ホスト管理',
       description: 'ホストが記録を管理',
     },
     consensus: {
-      emoji: '🤝',
+      icon: 'users',
       name: '同意制',
       description: '承認が必要',
     },
@@ -119,7 +120,9 @@ export default function JoinEventScreen() {
           {/* イベント情報 */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <View className="items-center mb-8">
-              <Text className="text-5xl mb-4">🎉</Text>
+              <View className="w-20 h-20 bg-secondary-100 rounded-full items-center justify-center mb-4">
+                <Feather name="calendar" size={40} color="#f97316" />
+              </View>
               <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
                 イベントへの招待
               </Text>
@@ -142,17 +145,17 @@ export default function JoinEventScreen() {
                 )}
                 <View className="w-full bg-gray-50 rounded-xl p-4 space-y-3">
                   <InfoRow
-                    icon="📅"
+                    icon="clock"
                     label="開始日時"
                     value={dayjs(event.startedAt).format('M月D日 (ddd) HH:mm')}
                   />
                   <InfoRow
-                    icon={ruleInfo.emoji}
+                    icon={ruleInfo.icon}
                     label="記録ルール"
                     value={`${ruleInfo.name} - ${ruleInfo.description}`}
                   />
                   <InfoRow
-                    icon="🔗"
+                    icon="link"
                     label="招待コード"
                     value={event.inviteCode}
                   />
@@ -204,13 +207,13 @@ function InfoRow({
   label,
   value,
 }: {
-  icon: string;
+  icon: keyof typeof Feather.glyphMap;
   label: string;
   value: string;
 }) {
   return (
     <View className="flex-row items-start">
-      <Text className="text-lg mr-2">{icon}</Text>
+      <Feather name={icon} size={18} color="#6b7280" style={{ marginRight: 8 }} />
       <View className="flex-1">
         <Text className="text-xs text-gray-500">{label}</Text>
         <Text className="text-sm font-semibold text-gray-900 mt-0.5">

@@ -22,15 +22,6 @@ export default function TabLayout() {
         <Icon sf="person.fill" />
         <Label>プロフィール</Label>
       </NativeTabs.Trigger>
-
-      {/* 非表示のサブ画面（eventsのみ - drinksはStack navigatorで処理） */}
-      <NativeTabs.Trigger name="events/create" hidden />
-      <NativeTabs.Trigger name="events/[id]/index" hidden />
-      <NativeTabs.Trigger name="events/[id]/invite" hidden />
-      <NativeTabs.Trigger name="events/[id]/add-drink" hidden />
-      <NativeTabs.Trigger name="events/[id]/approvals" hidden />
-      <NativeTabs.Trigger name="events/[id]/ranking" hidden />
-      <NativeTabs.Trigger name="events/scan" hidden />
     </NativeTabs>
   );
 }

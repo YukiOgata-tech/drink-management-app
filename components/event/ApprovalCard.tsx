@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { DrinkLog } from '@/types';
 import { Card } from '@/components/ui';
 import dayjs from 'dayjs';
@@ -39,9 +40,12 @@ export function ApprovalCard({
             {log.count}杯 • {(log.pureAlcoholG * log.count).toFixed(1)}g
           </Text>
           {log.memo && (
-            <Text className="text-xs text-gray-500 mt-1" numberOfLines={2}>
-              💬 {log.memo}
-            </Text>
+            <View className="flex-row items-center mt-1">
+              <Feather name="message-circle" size={10} color="#6b7280" />
+              <Text className="text-xs text-gray-500 ml-1" numberOfLines={2}>
+                {log.memo}
+              </Text>
+            </View>
           )}
           <Text className="text-xs text-gray-400 mt-1">
             {dayjs(log.recordedAt).format('M月D日 HH:mm')}

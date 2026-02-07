@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/user';
 import { signUp } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
@@ -79,8 +80,8 @@ export default function SignUpScreen() {
             onPress={() => router.back()}
             className="py-4 flex-row items-center"
           >
-            <Text className="text-2xl mr-2">←</Text>
-            <Text className="text-base text-gray-600">戻る</Text>
+            <Feather name="arrow-left" size={24} color="#4b5563" />
+            <Text className="text-base text-gray-600 ml-2">戻る</Text>
           </TouchableOpacity>
 
           {/* ヘッダー */}

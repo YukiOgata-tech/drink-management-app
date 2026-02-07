@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card, Input } from '@/components/ui';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { DrinkCategory } from '@/types';
@@ -86,9 +87,10 @@ export default function AddCustomDrinkScreen() {
       <View className="flex-1">
         {/* ヘッダー */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
-          <TouchableOpacity onPress={() => router.back()} className="mb-2">
-            <Text className="text-primary-600 font-semibold text-base">
-              ← 戻る
+          <TouchableOpacity onPress={() => router.back()} className="mb-2 flex-row items-center">
+            <Feather name="arrow-left" size={16} color="#0284c7" />
+            <Text className="text-primary-600 font-semibold text-base ml-1">
+              戻る
             </Text>
           </TouchableOpacity>
           <Text className="text-2xl font-bold text-gray-900">
@@ -167,7 +169,7 @@ export default function AddCustomDrinkScreen() {
                 onChangeText={setMl}
                 keyboardType="numeric"
                 placeholder="例: 350"
-                icon={<Text className="text-xl">📏</Text>}
+                icon={<Feather name="droplet" size={20} color="#6b7280" />}
               />
 
               <Input
@@ -176,7 +178,7 @@ export default function AddCustomDrinkScreen() {
                 onChangeText={setAbv}
                 keyboardType="decimal-pad"
                 placeholder="例: 5.5"
-                icon={<Text className="text-xl">🌡️</Text>}
+                icon={<Feather name="percent" size={20} color="#6b7280" />}
               />
 
               <Input
@@ -186,7 +188,7 @@ export default function AddCustomDrinkScreen() {
                 placeholder="味の特徴など..."
                 multiline
                 numberOfLines={3}
-                icon={<Text className="text-xl">✍️</Text>}
+                icon={<Feather name="edit-3" size={20} color="#6b7280" />}
               />
             </Card>
           </Animated.View>
@@ -195,6 +197,9 @@ export default function AddCustomDrinkScreen() {
           <Animated.View entering={FadeInDown.delay(150).duration(600)}>
             <Button title="登録する" onPress={handleSave} fullWidth />
           </Animated.View>
+
+          {/* 下部余白（タブバー分） */}
+          <View className="h-24" />
         </ScrollView>
       </View>
     </SafeAreaView>

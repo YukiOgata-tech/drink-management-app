@@ -13,13 +13,19 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yukiogata-411.drinkmanagement"
+      "bundleIdentifier": "com.yukiogata-411.drinkmanagement",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "バーコードをスキャンして飲み物の情報を自動入力するためにカメラを使用します",
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/DMA-icon_light.png",
         "backgroundColor": "#ffffff"
       },
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -29,19 +35,10 @@
             {
               "scheme": "drinkmanagement",
               "host": "events"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
-        {
-          "action": "VIEW",
-          "data": [
+            },
             {
               "scheme": "drinkmanagement",
-              "host": "events"
+              "host": "auth"
             }
           ],
           "category": [
@@ -73,6 +70,12 @@
             "image": "./assets/images/DMA-icon_dark.png",
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "バーコードをスキャンして飲み物の情報を自動入力するためにカメラを使用します"
         }
       ],
       "expo-secure-store",

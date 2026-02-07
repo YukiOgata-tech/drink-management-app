@@ -246,3 +246,60 @@ CREATE TRIGGER trigger_auto_approve_drink_log
   EXECUTE FUNCTION public.auto_approve_drink_log();
 
 COMMENT ON FUNCTION public.auto_approve_drink_log IS 'consensusモードで必要な承認数に達したら自動的にapprovedに変更';
+
+-- =====================================================
+-- トリガー: イベント作成時にホストを自動的にメンバーとして追加
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.auto_add_host_as_member()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.event_members (event_id, user_id, role)
+  VALUES (NEW.id, NEW.host_id, 'host');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_auto_add_host_as_member
+  AFTER INSERT ON public.events
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_add_host_as_member();
+
+COMMENT ON FUNCTION public.auto_add_host_as_member IS 'イベント作成時にホストを自動的にメンバーとして追加（RLSをバイパス）';
+
+-- =====================================================
+-- RPC関数: イベント作成（RLSをバイパス、イベントデータを返す）
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.create_event_with_host(
+  p_title TEXT,
+  p_description TEXT,
+  p_recording_rule TEXT,
+  p_required_approvals INTEGER,
+  p_started_at TIMESTAMP WITH TIME ZONE
+)
+RETURNS public.events AS $$
+DECLARE
+  v_event public.events;
+  v_user_id UUID;
+BEGIN
+  -- 現在の認証ユーザーを取得
+  v_user_id := auth.uid();
+
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- イベントを作成
+  INSERT INTO public.events (title, description, recording_rule, required_approvals, started_at, host_id)
+  VALUES (p_title, p_description, p_recording_rule, p_required_approvals, p_started_at, v_user_id)
+  RETURNING * INTO v_event;
+
+  -- ホストをメンバーとして追加
+  INSERT INTO public.event_members (event_id, user_id, role)
+  VALUES (v_event.id, v_user_id, 'host')
+  ON CONFLICT (event_id, user_id) DO NOTHING;
+
+  RETURN v_event;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION public.create_event_with_host IS 'イベントを作成しホストをメンバーとして追加（RLSをバイパス、イベントデータを返す）';

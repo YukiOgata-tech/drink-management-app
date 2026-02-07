@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
@@ -161,7 +162,10 @@ export default function DrinksScreen() {
       <View className="flex-1">
         {/* ヘッダー */}
         <View className="px-6 py-6 bg-white border-b border-gray-200">
-          <Text className="text-2xl font-bold text-gray-900">飲酒記録 📝</Text>
+          <View className="flex-row items-center">
+            <Text className="text-2xl font-bold text-gray-900">飲酒記録</Text>
+            <Feather name="edit-3" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
+          </View>
           <Text className="text-sm text-gray-500 mt-1">
             日常の飲酒を記録しましょう
           </Text>
@@ -177,7 +181,7 @@ export default function DrinksScreen() {
             activeOpacity={0.8}
             className="bg-primary-500 rounded-xl py-4 flex-row items-center justify-center"
           >
-            <Text className="text-xl mr-2">➕</Text>
+            <Feather name="plus-circle" size={22} color="#ffffff" style={{ marginRight: 8 }} />
             <Text className="text-white font-semibold text-lg">個人記録を追加</Text>
           </TouchableOpacity>
 
@@ -272,9 +276,12 @@ export default function DrinksScreen() {
                                 {dayjs(log.recordedAt).format('M月D日 HH:mm')}
                               </Text>
                               {!isDeleted && log.memo && (
-                                <Text className="text-xs text-gray-600 mt-1">
-                                  💬 {log.memo}
-                                </Text>
+                                <View className="flex-row items-center mt-1">
+                                  <Feather name="message-circle" size={10} color="#4b5563" style={{ marginRight: 4 }} />
+                                  <Text className="text-xs text-gray-600">
+                                    {log.memo}
+                                  </Text>
+                                </View>
                               )}
                             </View>
                             {!isDeleted && (
@@ -303,7 +310,9 @@ export default function DrinksScreen() {
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-12">
-                  <Text className="text-4xl mb-2">📝</Text>
+                  <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-2">
+                    <Feather name="edit-3" size={32} color="#9ca3af" />
+                  </View>
                   <Text className="text-gray-500 mb-4">まだ記録がありません</Text>
                   <Button
                     title="最初の記録を追加"
@@ -436,7 +445,7 @@ export default function DrinksScreen() {
                           </Text>
                         </View>
                         {selectedDrink?.id === drink.id && (
-                          <Text className="text-2xl">✓</Text>
+                          <Feather name="check-circle" size={22} color="#0ea5e9" />
                         )}
                       </View>
                     </Card>

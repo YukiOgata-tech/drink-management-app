@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { DrinkLog } from '@/types';
 import { Card } from '@/components/ui';
 import dayjs from 'dayjs';
@@ -17,6 +18,30 @@ interface DrinkLogCardProps {
   onReject?: () => void;
 }
 
+const statusConfig = {
+  pending: {
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-700',
+    label: '承認待ち',
+    icon: 'clock' as const,
+    iconColor: '#b45309',
+  },
+  approved: {
+    bg: 'bg-green-100',
+    text: 'text-green-700',
+    label: '承認済み',
+    icon: 'check-circle' as const,
+    iconColor: '#15803d',
+  },
+  rejected: {
+    bg: 'bg-red-100',
+    text: 'text-red-700',
+    label: '却下',
+    icon: 'x-circle' as const,
+    iconColor: '#b91c1c',
+  },
+};
+
 export function DrinkLogCard({
   log,
   userName,
@@ -26,27 +51,6 @@ export function DrinkLogCard({
   onApprove,
   onReject,
 }: DrinkLogCardProps) {
-  const statusConfig = {
-    pending: {
-      bg: 'bg-yellow-100',
-      text: 'text-yellow-700',
-      label: '承認待ち',
-      emoji: '⏳',
-    },
-    approved: {
-      bg: 'bg-green-100',
-      text: 'text-green-700',
-      label: '承認済み',
-      emoji: '✅',
-    },
-    rejected: {
-      bg: 'bg-red-100',
-      text: 'text-red-700',
-      label: '却下',
-      emoji: '❌',
-    },
-  };
-
   const status = statusConfig[log.status];
 
   return (
@@ -60,9 +64,10 @@ export function DrinkLogCard({
                 {log.drinkName}
               </Text>
               {showStatus && (
-                <View className={`px-2 py-1 rounded-full ${status.bg}`}>
-                  <Text className={`text-xs font-semibold ${status.text}`}>
-                    {status.emoji} {status.label}
+                <View className={`flex-row items-center px-2 py-1 rounded-full ${status.bg}`}>
+                  <Feather name={status.icon} size={12} color={status.iconColor} />
+                  <Text className={`text-xs font-semibold ${status.text} ml-1`}>
+                    {status.label}
                   </Text>
                 </View>
               )}
@@ -74,9 +79,12 @@ export function DrinkLogCard({
               {log.count}杯 • {(log.pureAlcoholG * log.count).toFixed(1)}g
             </Text>
             {log.memo && (
-              <Text className="text-xs text-gray-500 mt-1" numberOfLines={1}>
-                💬 {log.memo}
-              </Text>
+              <View className="flex-row items-center mt-1">
+                <Feather name="message-circle" size={10} color="#6b7280" />
+                <Text className="text-xs text-gray-500 ml-1" numberOfLines={1}>
+                  {log.memo}
+                </Text>
+              </View>
             )}
             <Text className="text-xs text-gray-400 mt-1">
               {dayjs(log.recordedAt).format('M月D日 HH:mm')}

@@ -7,6 +7,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Feather } from '@expo/vector-icons';
 import { Button } from '@/components/ui';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
@@ -41,7 +42,7 @@ export function NotificationPermissionModal({
             entering={FadeIn.delay(200).duration(400)}
             style={styles.iconContainer}
           >
-            <Text style={styles.icon}>🔔</Text>
+            <Feather name="bell" size={40} color="#0ea5e9" />
           </Animated.View>
 
           {/* タイトル */}
@@ -55,19 +56,19 @@ export function NotificationPermissionModal({
           {/* 機能リスト */}
           <View style={styles.featureList}>
             <FeatureItem
-              emoji="🎉"
+              icon="calendar"
               text="イベントへの招待通知"
             />
             <FeatureItem
-              emoji="✅"
+              icon="check-circle"
               text="飲酒記録の承認リクエスト"
             />
             <FeatureItem
-              emoji="📊"
+              icon="bar-chart-2"
               text="週間・月間レポート"
             />
             <FeatureItem
-              emoji="💡"
+              icon="info"
               text="健康アドバイス"
             />
           </View>
@@ -100,10 +101,12 @@ export function NotificationPermissionModal({
   );
 }
 
-function FeatureItem({ emoji, text }: { emoji: string; text: string }) {
+function FeatureItem({ icon, text }: { icon: keyof typeof Feather.glyphMap; text: string }) {
   return (
     <View style={styles.featureItem}>
-      <Text style={styles.featureEmoji}>{emoji}</Text>
+      <View style={styles.featureIcon}>
+        <Feather name={icon} size={20} color="#0ea5e9" />
+      </View>
       <Text style={styles.featureText}>{text}</Text>
     </View>
   );
@@ -166,9 +169,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
   },
-  featureEmoji: {
-    fontSize: 20,
+  featureIcon: {
+    width: 28,
     marginRight: 12,
+    alignItems: 'center',
   },
   featureText: {
     fontSize: 14,

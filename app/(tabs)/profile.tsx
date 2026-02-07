@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card, Input } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
@@ -184,7 +185,7 @@ export default function ProfileScreen() {
                 className="w-24 h-24 rounded-full border-4 border-primary-500"
               />
               <View className="absolute bottom-0 right-0 bg-primary-500 rounded-full w-8 h-8 items-center justify-center">
-                <Text className="text-white text-lg">📷</Text>
+                <Feather name="camera" size={16} color="#ffffff" />
               </View>
             </TouchableOpacity>
             <Text className="text-2xl font-bold text-gray-900">
@@ -236,7 +237,7 @@ export default function ProfileScreen() {
                 {xpInfo.negativeXP > 0 && (
                   <View className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
                     <View className="flex-row items-center">
-                      <Text className="text-lg mr-2">⚠️</Text>
+                      <Feather name="alert-triangle" size={18} color="#b45309" style={{ marginRight: 8 }} />
                       <View className="flex-1">
                         <Text className="text-xs font-semibold text-amber-700">
                           借金XP: {xpInfo.negativeXP.toLocaleString()} XP
@@ -257,7 +258,9 @@ export default function ProfileScreen() {
             <Animated.View entering={FadeInDown.delay(50).duration(600)}>
               <Card variant="elevated" className="mb-6 bg-gradient-to-br from-primary-50 to-secondary-50">
                 <View className="items-center py-4">
-                  <Text className="text-5xl mb-4">🎭</Text>
+                  <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+                    <Feather name="user" size={40} color="#6b7280" />
+                  </View>
                   <Text className="text-xl font-bold text-gray-900 mb-2">
                     ゲストモードで利用中
                   </Text>
@@ -299,7 +302,7 @@ export default function ProfileScreen() {
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
               <Card variant="elevated" className="mb-6 bg-amber-50 border-2 border-amber-300">
                 <View className="flex-row items-start">
-                  <Text className="text-3xl mr-3">⚠️</Text>
+                  <Feather name="alert-triangle" size={28} color="#b45309" style={{ marginRight: 12 }} />
                   <View className="flex-1">
                     <Text className="text-lg font-bold text-amber-900 mb-2">
                       メールアドレス未確認
@@ -350,7 +353,7 @@ export default function ProfileScreen() {
                       onPress={() => setShowDatePicker(true)}
                       className="bg-white border border-gray-300 rounded-xl px-4 py-3 flex-row items-center"
                     >
-                      <Text className="text-xl mr-3">🎂</Text>
+                      <Feather name="gift" size={20} color="#6b7280" style={{ marginRight: 12 }} />
                       <Text className="text-base text-gray-900 flex-1">
                         {birthday
                           ? new Date(birthday).toLocaleDateString('ja-JP', {
@@ -360,7 +363,7 @@ export default function ProfileScreen() {
                             })
                           : '誕生日を選択'}
                       </Text>
-                      <Text className="text-gray-400">▼</Text>
+                      <Feather name="chevron-down" size={16} color="#9ca3af" />
                     </TouchableOpacity>
                   </View>
 
@@ -392,7 +395,7 @@ export default function ProfileScreen() {
                     onChangeText={setHeight}
                     keyboardType="numeric"
                     placeholder="例: 172"
-                    icon={<Text className="text-xl">📏</Text>}
+                    icon={<Feather name="move-vertical" size={20} color="#6b7280" />}
                   />
                   <Input
                     label="体重 (kg)"
@@ -400,7 +403,7 @@ export default function ProfileScreen() {
                     onChangeText={setWeight}
                     keyboardType="numeric"
                     placeholder="例: 65"
-                    icon={<Text className="text-xl">⚖️</Text>}
+                    icon={<Feather name="activity" size={20} color="#6b7280" />}
                   />
                   <Input
                     label="自己紹介"
@@ -409,7 +412,7 @@ export default function ProfileScreen() {
                     placeholder="簡単な自己紹介を入力..."
                     multiline
                     numberOfLines={3}
-                    icon={<Text className="text-xl">✍️</Text>}
+                    icon={<Feather name="edit-3" size={20} color="#6b7280" />}
                   />
 
                   <View className="flex-row gap-3">
@@ -433,7 +436,7 @@ export default function ProfileScreen() {
               ) : (
                 <View className="space-y-4">
                   <InfoRow
-                    icon="🎂"
+                    icon="gift"
                     label="年齢"
                     value={
                       user.profile.birthday
@@ -444,8 +447,8 @@ export default function ProfileScreen() {
                         : '未設定'
                     }
                   />
-                  <InfoRow icon="📏" label="身長" value={user.profile.height ? `${user.profile.height}cm` : '未設定'} />
-                  <InfoRow icon="⚖️" label="体重" value={user.profile.weight ? `${user.profile.weight}kg` : '未設定'} />
+                  <InfoRow icon="move-vertical" label="身長" value={user.profile.height ? `${user.profile.height}cm` : '未設定'} />
+                  <InfoRow icon="activity" label="体重" value={user.profile.weight ? `${user.profile.weight}kg` : '未設定'} />
                   {user.profile.bio && (
                     <View>
                       <Text className="text-sm font-semibold text-gray-700 mb-1">
@@ -492,25 +495,25 @@ export default function ProfileScreen() {
                   onPress={() => router.push('/legal/drinking-guide')}
                   className="flex-row items-center py-3 border-b border-gray-100"
                 >
-                  <Text className="text-xl mr-3">📖</Text>
+                  <Feather name="book-open" size={20} color="#6b7280" style={{ marginRight: 12 }} />
                   <Text className="flex-1 text-base text-gray-800">飲酒ガイドライン</Text>
-                  <Text className="text-gray-400">›</Text>
+                  <Feather name="chevron-right" size={16} color="#9ca3af" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => router.push('/legal/terms')}
                   className="flex-row items-center py-3 border-b border-gray-100"
                 >
-                  <Text className="text-xl mr-3">📋</Text>
+                  <Feather name="file-text" size={20} color="#6b7280" style={{ marginRight: 12 }} />
                   <Text className="flex-1 text-base text-gray-800">利用規約</Text>
-                  <Text className="text-gray-400">›</Text>
+                  <Feather name="chevron-right" size={16} color="#9ca3af" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => router.push('/legal/privacy-policy')}
                   className="flex-row items-center py-3"
                 >
-                  <Text className="text-xl mr-3">🔒</Text>
+                  <Feather name="lock" size={20} color="#6b7280" style={{ marginRight: 12 }} />
                   <Text className="flex-1 text-base text-gray-800">プライバシーポリシー</Text>
-                  <Text className="text-gray-400">›</Text>
+                  <Feather name="chevron-right" size={16} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
             </Card>
@@ -596,9 +599,9 @@ export default function ProfileScreen() {
                   あなたの記録（ダミーデータ）
                 </Text>
                 <View className="flex-row justify-around">
-                  <StatBox label="総記録数" value="12" icon="📊" />
-                  <StatBox label="イベント参加" value="3" icon="🎉" />
-                  <StatBox label="平均/日" value="1.5杯" icon="📈" />
+                  <StatBox label="総記録数" value="12" icon="bar-chart-2" />
+                  <StatBox label="イベント参加" value="3" icon="calendar" />
+                  <StatBox label="平均/日" value="1.5杯" icon="trending-up" />
                 </View>
               </Card>
             </Animated.View>
@@ -609,10 +612,10 @@ export default function ProfileScreen() {
   );
 }
 
-function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function InfoRow({ icon, label, value }: { icon: keyof typeof Feather.glyphMap; label: string; value: string }) {
   return (
     <View className="flex-row items-center">
-      <Text className="text-xl mr-3">{icon}</Text>
+      <Feather name={icon} size={20} color="#6b7280" style={{ marginRight: 12 }} />
       <View className="flex-1">
         <Text className="text-sm text-gray-500">{label}</Text>
         <Text className="text-base font-semibold text-gray-900">{value}</Text>
@@ -621,10 +624,12 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
-function StatBox({ label, value, icon }: { label: string; value: string; icon: string }) {
+function StatBox({ label, value, icon }: { label: string; value: string; icon: keyof typeof Feather.glyphMap }) {
   return (
     <View className="items-center">
-      <Text className="text-3xl mb-2">{icon}</Text>
+      <View className="w-12 h-12 bg-primary-100 rounded-full items-center justify-center mb-2">
+        <Feather name={icon} size={24} color="#0ea5e9" />
+      </View>
       <Text className="text-2xl font-bold text-primary-600">{value}</Text>
       <Text className="text-xs text-gray-500 mt-1">{label}</Text>
     </View>

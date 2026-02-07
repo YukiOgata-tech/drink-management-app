@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '@/components/ui';
 import { ApprovalCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
@@ -123,9 +124,10 @@ export default function ApprovalsScreen() {
       <View className="flex-1">
         {/* ヘッダー */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
-          <TouchableOpacity onPress={() => router.back()} className="mb-2">
-            <Text className="text-primary-600 font-semibold text-base">
-              ← 戻る
+          <TouchableOpacity onPress={() => router.back()} className="mb-2 flex-row items-center">
+            <Feather name="arrow-left" size={16} color="#0284c7" />
+            <Text className="text-primary-600 font-semibold text-base ml-1">
+              戻る
             </Text>
           </TouchableOpacity>
           <View className="flex-row items-center justify-between">
@@ -140,6 +142,7 @@ export default function ApprovalsScreen() {
 
         <ScrollView
           className="flex-1 px-6 py-6"
+          contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -174,7 +177,9 @@ export default function ApprovalsScreen() {
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
               <Card variant="outlined">
                 <View className="items-center py-12">
-                  <Text className="text-5xl mb-4">✅</Text>
+                  <View className="mb-4">
+                    <Feather name="check-circle" size={48} color="#22c55e" />
+                  </View>
                   <Text className="text-gray-900 font-semibold text-lg mb-2">
                     承認待ちの記録はありません
                   </Text>
@@ -193,9 +198,12 @@ export default function ApprovalsScreen() {
               className="mt-6"
             >
               <Card variant="outlined" className="bg-blue-50 border-blue-200">
-                <Text className="text-sm font-bold text-blue-900 mb-2">
-                  💡 承認について
-                </Text>
+                <View className="flex-row items-center mb-2">
+                  <Feather name="info" size={16} color="#1e3a8a" />
+                  <Text className="text-sm font-bold text-blue-900 ml-2">
+                    承認について
+                  </Text>
+                </View>
                 <Text className="text-xs text-blue-800 leading-5">
                   • 各記録は{event.requiredApprovals}
                   人以上の承認で自動的に承認されます{'\n'}

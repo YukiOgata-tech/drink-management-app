@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { DrinkCategory, DefaultDrink } from '@/types';
+import { calculatePureAlcohol } from '@/lib/products';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card, Input } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
@@ -24,8 +27,21 @@ import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+// バーコードスキャンから渡される商品情報
+type BarcodeProduct = {
+  id: string;
+  name: string;
+  brand?: string;
+  category: DrinkCategory;
+  ml: number;
+  abv: number;
+  pureAlcoholG: number;
+  emoji: string;
+  barcode: string;
+};
+
 export default function AddDrinkScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, barcodeProduct } = useLocalSearchParams<{ id: string; barcodeProduct?: string }>();
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
   const addXP = useUserStore((state) => state.addXP);
@@ -48,6 +64,29 @@ export default function AddDrinkScreen() {
       setSelectedUserId(user.id);
     }
   }, [user]);
+
+  // バーコードスキャンからの商品を処理
+  useEffect(() => {
+    if (barcodeProduct) {
+      try {
+        const product: BarcodeProduct = JSON.parse(barcodeProduct);
+        // バーコード商品をDefaultDrink形式に変換して選択
+        const drinkInfo: DefaultDrink = {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          ml: product.ml,
+          abv: product.abv,
+          pureAlcoholG: product.pureAlcoholG,
+          emoji: product.emoji,
+        };
+        setSelectedDrink(drinkInfo);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (e) {
+        console.error('Failed to parse barcode product:', e);
+      }
+    }
+  }, [barcodeProduct]);
 
   if (!user || !event) {
     router.back();
@@ -196,7 +235,7 @@ export default function AddDrinkScreen() {
 
     if (leveledUp && newLevel) {
       Alert.alert(
-        '🎉 レベルアップ！',
+        'レベルアップ！',
         `${message}\n\nレベル ${newLevel} になりました！`,
         [{ text: 'やったー！', onPress: () => router.back() }]
       );
@@ -238,7 +277,7 @@ export default function AddDrinkScreen() {
             <View style={{ width: 80 }} />
           </View>
 
-          <ScrollView className="flex-1 px-6 py-6">
+          <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 100 }}>
             {/* ユーザー選択（host_onlyモードの場合のみ） */}
             {canManage && (
               <Animated.View
@@ -281,9 +320,48 @@ export default function AddDrinkScreen() {
               </Animated.View>
             )}
 
-            {/* 検索バー */}
+            {/* バーコードスキャン */}
             <Animated.View
               entering={FadeInDown.delay(150).duration(600)}
+              className="mb-4"
+            >
+              <TouchableOpacity
+                onPress={() => router.push({
+                  pathname: '/(tabs)/drinks/barcode-scan',
+                  params: { returnTo: `/(tabs)/events/${id}/add-drink` },
+                })}
+                className="rounded-xl py-4 px-5 flex-row items-center"
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: '#f97316',
+                  shadowColor: '#ea580c',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+              >
+                <View
+                  className="w-12 h-12 rounded-full items-center justify-center mr-4"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
+                >
+                  <Feather name="maximize" size={24} color="#ffffff" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white font-bold text-base">
+                    バーコードで追加
+                  </Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.85)' }} className="text-sm mt-0.5">
+                    缶チューハイなどをスキャンして記録
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={24} color="#ffffff" />
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* 検索バー */}
+            <Animated.View
+              entering={FadeInDown.delay(200).duration(600)}
               className="mb-4"
             >
               <View className="bg-white border border-gray-200 rounded-xl px-4 py-3">
@@ -299,7 +377,7 @@ export default function AddDrinkScreen() {
 
             {/* カテゴリ選択 */}
             <Animated.View
-              entering={FadeInDown.delay(200).duration(600)}
+              entering={FadeInDown.delay(250).duration(600)}
               className="mb-6"
             >
               <ScrollView
@@ -348,7 +426,7 @@ export default function AddDrinkScreen() {
             </Animated.View>
 
             {/* ドリンクリスト */}
-            <Animated.View entering={FadeInDown.delay(250).duration(600)}>
+            <Animated.View entering={FadeInDown.delay(300).duration(600)}>
               <Text className="text-lg font-bold text-gray-900 mb-3">
                 ドリンクを選択
               </Text>
@@ -381,7 +459,7 @@ export default function AddDrinkScreen() {
                           </Text>
                         </View>
                         {selectedDrink?.id === drink.id && (
-                          <Text className="text-2xl">✓</Text>
+                          <Feather name="check-circle" size={22} color="#0ea5e9" />
                         )}
                       </View>
                     </Card>
@@ -436,7 +514,7 @@ export default function AddDrinkScreen() {
                     placeholder="例: めっちゃ美味しい！"
                     multiline
                     numberOfLines={2}
-                    icon={<Text className="text-xl">💬</Text>}
+                    icon={<Feather name="message-circle" size={20} color="#6b7280" />}
                   />
                 </Card>
               </Animated.View>
@@ -447,7 +525,7 @@ export default function AddDrinkScreen() {
           {selectedDrink && (
             <Animated.View
               entering={FadeIn.duration(300)}
-              className="px-6 py-4 bg-white border-t border-gray-200"
+              className="px-6 py-4 pb-24 bg-white border-t border-gray-200"
             >
               <Button
                 title={isSubmitting ? '追加中...' : '記録を追加'}

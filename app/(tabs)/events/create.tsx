@@ -7,10 +7,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TextInput,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Button, Card, Input } from '@/components/ui';
+import { Feather } from '@expo/vector-icons';
+import { Button, Card } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { EventRecordingRule } from '@/types';
@@ -19,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 
 export default function CreateEventScreen() {
   const user = useUserStore((state) => state.user);
+  const isGuest = useUserStore((state) => state.isGuest);
   const createEvent = useEventsStore((state) => state.createEvent);
 
   const [title, setTitle] = useState('');
@@ -32,24 +36,71 @@ export default function CreateEventScreen() {
     return null;
   }
 
-  const recordingRules = [
+  // ゲストユーザーはイベント作成不可
+  if (isGuest) {
+    return (
+      <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+        <View className="flex-1">
+          <View className="px-6 py-4 bg-white border-b border-gray-200 flex-row items-center justify-between">
+            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
+              <Feather name="arrow-left" size={16} color="#0284c7" />
+              <Text className="text-primary-600 font-semibold text-base ml-1">
+                戻る
+              </Text>
+            </TouchableOpacity>
+            <Text className="text-lg font-bold text-gray-900">
+              イベント作成
+            </Text>
+            <View style={{ width: 80 }} />
+          </View>
+          <View className="flex-1 items-center justify-center px-6">
+            <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+              <Feather name="lock" size={40} color="#6b7280" />
+            </View>
+            <Text className="text-xl font-bold text-gray-900 mb-2">
+              ログインが必要です
+            </Text>
+            <Text className="text-gray-500 text-center mb-6">
+              イベントを作成するには{'\n'}アカウントでログインしてください
+            </Text>
+            <Button
+              title="ログインする"
+              onPress={() => router.push('/(auth)/login')}
+              variant="primary"
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const recordingRules: Array<{
+    id: EventRecordingRule;
+    name: string;
+    description: string;
+    icon: keyof typeof Feather.glyphMap;
+    iconColor: string;
+  }> = [
     {
-      id: 'self' as EventRecordingRule,
+      id: 'self',
       name: 'Self（各自入力）',
       description: '各参加者が自分の記録を自由に追加できます',
-      emoji: '✍️',
+      icon: 'edit-3',
+      iconColor: '#0ea5e9',
     },
     {
-      id: 'host_only' as EventRecordingRule,
+      id: 'host_only',
       name: 'Host Only（ホスト管理）',
       description: 'ホストやマネージャーのみが記録を管理します',
-      emoji: '👑',
+      icon: 'shield',
+      iconColor: '#f59e0b',
     },
     {
-      id: 'consensus' as EventRecordingRule,
+      id: 'consensus',
       name: 'Consensus（同意制）',
       description: '記録には他の参加者の承認が必要です',
-      emoji: '🤝',
+      icon: 'users',
+      iconColor: '#8b5cf6',
     },
   ];
 
@@ -77,7 +128,8 @@ export default function CreateEventScreen() {
     setIsLoading(false);
 
     if (error) {
-      Alert.alert('エラー', error);
+      Alert.alert('エラー', `${error}\n\nユーザーID: ${user.id}`);
+      console.error('Event creation error:', error, 'User ID:', user.id);
       return;
     }
 
@@ -115,27 +167,33 @@ export default function CreateEventScreen() {
           <ScrollView className="flex-1 px-6 py-6">
             {/* 基本情報 */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-              <Card variant="elevated" className="mb-6">
-                <Text className="text-lg font-bold text-gray-900 mb-4">
-                  基本情報
-                </Text>
-                <Input
-                  label="イベント名"
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="例: サークルの新年会"
-                  icon={<Text className="text-xl">🎉</Text>}
-                />
-                <Input
-                  label="説明（任意）"
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="イベントの詳細を入力..."
-                  multiline
-                  numberOfLines={3}
-                  icon={<Text className="text-xl">📝</Text>}
-                />
-              </Card>
+              <Text style={styles.sectionHeader}>基本情報</Text>
+              <View style={styles.inputGroup}>
+                <View style={styles.inputRow}>
+                  <Text style={styles.inputLabel}>イベント名</Text>
+                  <TextInput
+                    style={styles.inputField}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="例: 新年会"
+                    placeholderTextColor="#9ca3af"
+                  />
+                </View>
+                <View style={styles.separator} />
+                <View style={[styles.inputRow, styles.inputRowMultiline]}>
+                  <Text style={styles.inputLabel}>説明</Text>
+                  <TextInput
+                    style={[styles.inputField, styles.inputFieldMultiline]}
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="任意"
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
             </Animated.View>
 
             {/* 記録ルール */}
@@ -161,14 +219,16 @@ export default function CreateEventScreen() {
                       }
                     >
                       <View className="flex-row items-start">
-                        <Text className="text-3xl mr-3">{rule.emoji}</Text>
+                        <View className="w-12 h-12 bg-gray-100 rounded-full items-center justify-center mr-3">
+                          <Feather name={rule.icon} size={24} color={rule.iconColor} />
+                        </View>
                         <View className="flex-1">
                           <View className="flex-row items-center justify-between mb-1">
                             <Text className="text-base font-semibold text-gray-900">
                               {rule.name}
                             </Text>
                             {recordingRule === rule.id && (
-                              <Text className="text-2xl">✓</Text>
+                              <Feather name="check-circle" size={24} color="#f97316" />
                             )}
                           </View>
                           <Text className="text-sm text-gray-600">
@@ -185,30 +245,29 @@ export default function CreateEventScreen() {
             {/* 承認設定（consensusモードの場合のみ表示） */}
             {recordingRule === 'consensus' && (
               <Animated.View entering={FadeInDown.delay(300).duration(600)}>
-                <Card variant="elevated" className="mb-6">
-                  <Text className="text-lg font-bold text-gray-900 mb-4">
-                    承認設定
-                  </Text>
-                  <Input
-                    label="必要な承認数"
-                    value={requiredApprovals}
-                    onChangeText={setRequiredApprovals}
-                    placeholder="1"
-                    keyboardType="numeric"
-                    icon={<Text className="text-xl">✅</Text>}
-                  />
-                  <View className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
-                    <Text className="text-xs text-blue-800 leading-5">
-                      💡 記録が承認されるために必要な承認数を設定します。デフォルトは1人です。
-                    </Text>
+                <Text style={styles.sectionHeader}>承認設定</Text>
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.inputLabel}>必要な承認数</Text>
+                    <TextInput
+                      style={[styles.inputField, { textAlign: 'right' }]}
+                      value={requiredApprovals}
+                      onChangeText={setRequiredApprovals}
+                      placeholder="1"
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="numeric"
+                    />
                   </View>
-                </Card>
+                </View>
+                <Text style={styles.sectionFooter}>
+                  記録が承認されるために必要な承認数を設定します。デフォルトは1人です。
+                </Text>
               </Animated.View>
             )}
           </ScrollView>
 
           {/* 作成ボタン */}
-          <View className="px-6 py-4 bg-white border-t border-gray-200">
+          <View className="px-6 py-4 pb-24 bg-white border-t border-gray-200">
             <Button
               title={isLoading ? '作成中...' : 'イベントを作成'}
               onPress={handleCreate}
@@ -222,3 +281,65 @@ export default function CreateEventScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginLeft: 16,
+  },
+  sectionFooter: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 8,
+    marginLeft: 16,
+    marginRight: 16,
+    lineHeight: 18,
+  },
+  inputGroup: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 44,
+  },
+  inputRowMultiline: {
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+  },
+  inputLabel: {
+    fontSize: 17,
+    color: '#111827',
+    width: 100,
+  },
+  inputField: {
+    flex: 1,
+    fontSize: 17,
+    color: '#111827',
+    padding: 0,
+  },
+  inputFieldMultiline: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#e5e7eb',
+    marginLeft: 16,
+  },
+});

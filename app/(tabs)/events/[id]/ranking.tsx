@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
@@ -37,11 +38,11 @@ interface RankingItem {
   subValue?: string;
 }
 
-const CATEGORIES: { id: RankingCategory; label: string; emoji: string; unit: string; description: string }[] = [
-  { id: 'drinks', label: '総杯数', emoji: '🍺', unit: '杯', description: '一番飲んだのは誰？' },
-  { id: 'alcohol', label: 'アルコール量', emoji: '⚗️', unit: 'g', description: '純アルコール量で勝負' },
-  { id: 'variety', label: '種類数', emoji: '🎨', unit: '種類', description: 'いろんなお酒を試した人' },
-  { id: 'frequency', label: '記録回数', emoji: '📝', unit: '回', description: 'こまめに記録した人' },
+const CATEGORIES: { id: RankingCategory; label: string; icon: keyof typeof Feather.glyphMap; unit: string; description: string }[] = [
+  { id: 'drinks', label: '総杯数', icon: 'coffee', unit: '杯', description: '一番飲んだのは誰？' },
+  { id: 'alcohol', label: 'アルコール量', icon: 'droplet', unit: 'g', description: '純アルコール量で勝負' },
+  { id: 'variety', label: '種類数', icon: 'grid', unit: '種類', description: 'いろんなお酒を試した人' },
+  { id: 'frequency', label: '記録回数', icon: 'edit-3', unit: '回', description: 'こまめに記録した人' },
 ];
 
 export default function RankingScreen() {
@@ -56,9 +57,14 @@ export default function RankingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  // 画面がフォーカスされるたびにデータを再取得
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        loadData();
+      }
+    }, [id])
+  );
 
   const loadData = async () => {
     setLoading(true);
@@ -175,8 +181,32 @@ export default function RankingScreen() {
     return { totalDrinks, totalAlcohol, uniqueDrinks, avgPerPerson };
   }, [drinkLogs, members]);
 
-  if (!user || !event) {
-    return null;
+  if (!user) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.loadingText}>読み込み中...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!event) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <View style={styles.backButtonContent}>
+              <Feather name="arrow-left" size={16} color="rgba(255,255,255,0.9)" />
+              <Text style={styles.backButtonText}>戻る</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerContent}>
+          <Text style={styles.loadingText}>イベントを読み込み中...</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const currentCategory = CATEGORIES.find((c) => c.id === selectedCategory)!;
@@ -194,7 +224,10 @@ export default function RankingScreen() {
           style={styles.header}
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← 戻る</Text>
+            <View style={styles.backButtonContent}>
+              <Feather name="arrow-left" size={16} color="rgba(255,255,255,0.9)" />
+              <Text style={styles.backButtonText}>戻る</Text>
+            </View>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>ランキング</Text>
           <Text style={styles.headerSubtitle}>{event.title}</Text>
@@ -226,7 +259,12 @@ export default function RankingScreen() {
                     selectedCategory === category.id && styles.categoryTabActive,
                   ]}
                 >
-                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  <Feather
+                    name={category.icon}
+                    size={16}
+                    color={selectedCategory === category.id ? '#ffffff' : '#374151'}
+                    style={{ marginRight: 6 }}
+                  />
                   <Text
                     style={[
                       styles.categoryLabel,
@@ -245,9 +283,12 @@ export default function RankingScreen() {
             entering={FadeIn.delay(150).duration(300)}
             style={styles.categoryDescription}
           >
-            <Text style={styles.categoryDescriptionText}>
-              {currentCategory.emoji} {currentCategory.description}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name={currentCategory.icon} size={14} color="#6b7280" style={{ marginRight: 6 }} />
+              <Text style={styles.categoryDescriptionText}>
+                {currentCategory.description}
+              </Text>
+            </View>
           </Animated.View>
 
           {/* Top 3 表彰台 */}
@@ -330,7 +371,9 @@ export default function RankingScreen() {
           {rankings.length === 0 && (
             <Animated.View entering={FadeInDown.delay(200).duration(400)}>
               <Card variant="outlined" style={styles.emptyCard}>
-                <Text style={styles.emptyEmoji}>📊</Text>
+                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Feather name="bar-chart-2" size={32} color="#9ca3af" />
+                </View>
                 <Text style={styles.emptyText}>まだ記録がありません</Text>
                 <Text style={styles.emptySubtext}>
                   飲酒記録を追加するとランキングが表示されます
@@ -348,28 +391,28 @@ export default function RankingScreen() {
               <Text style={styles.sectionTitle}>イベント統計</Text>
               <View style={styles.statsGrid}>
                 <StatCard
-                  emoji="🍺"
+                  icon="coffee"
                   value={stats.totalDrinks}
                   unit="杯"
                   label="総杯数"
                   color="#0ea5e9"
                 />
                 <StatCard
-                  emoji="⚗️"
+                  icon="droplet"
                   value={parseFloat(stats.totalAlcohol.toFixed(1))}
                   unit="g"
                   label="総アルコール"
                   color="#8b5cf6"
                 />
                 <StatCard
-                  emoji="🎨"
+                  icon="grid"
                   value={stats.uniqueDrinks}
                   unit="種類"
                   label="ドリンク種類"
                   color="#f59e0b"
                 />
                 <StatCard
-                  emoji="📊"
+                  icon="bar-chart-2"
                   value={parseFloat(stats.avgPerPerson.toFixed(1))}
                   unit="杯"
                   label="平均/人"
@@ -402,7 +445,7 @@ function PodiumItem({
   isCurrentUser: boolean;
   delay: number;
 }) {
-  const rankEmojis = ['🥇', '🥈', '🥉'];
+  const rankColors = ['#ca8a04', '#64748b', '#b45309'];
 
   return (
     <Animated.View
@@ -417,10 +460,10 @@ function PodiumItem({
             style={styles.podiumAvatarImage}
           />
         ) : (
-          <Text style={styles.podiumAvatarEmoji}>👤</Text>
+          <Feather name="user" size={28} color="#6b7280" />
         )}
         <View style={styles.podiumRankBadge}>
-          <Text style={styles.podiumRankEmoji}>{rankEmojis[rank - 1]}</Text>
+          <Feather name="award" size={20} color={rankColors[rank - 1]} />
         </View>
       </View>
 
@@ -469,7 +512,7 @@ function RankingRow({
               style={styles.rankingAvatarImage}
             />
           ) : (
-            <Text style={styles.rankingAvatarEmoji}>👤</Text>
+            <Feather name="user" size={20} color="#6b7280" />
           )}
         </View>
         <View style={styles.rankingInfo}>
@@ -492,13 +535,13 @@ function RankingRow({
 
 // 統計カード
 function StatCard({
-  emoji,
+  icon,
   value,
   unit,
   label,
   color,
 }: {
-  emoji: string;
+  icon: keyof typeof Feather.glyphMap;
   value: number;
   unit: string;
   label: string;
@@ -506,7 +549,7 @@ function StatCard({
 }) {
   return (
     <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <Text style={styles.statEmoji}>{emoji}</Text>
+      <Feather name={icon} size={24} color={color} style={{ marginBottom: 8 }} />
       <Text style={styles.statValue}>
         {value}
         <Text style={styles.statUnit}>{unit}</Text>
@@ -524,6 +567,15 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6b7280',
+  },
   header: {
     paddingHorizontal: 24,
     paddingTop: 8,
@@ -536,6 +588,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 4,
+  },
+  backButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     color: '#fff',

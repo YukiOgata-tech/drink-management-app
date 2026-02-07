@@ -83,7 +83,7 @@ export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs:
         *,
         profiles:user_id (
           display_name,
-          avatar_url
+          avatar
         )
       `)
       .eq('event_id', eventId)
@@ -109,7 +109,7 @@ export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs:
       recordedAt: item.recorded_at,
       createdAt: item.created_at,
       userName: item.profiles?.display_name || '名無し',
-      userAvatar: item.profiles?.avatar_url,
+      userAvatar: item.profiles?.avatar,
     }));
 
     return { drinkLogs, error: null };

@@ -1,11 +1,19 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSyncStore, SyncStatus } from '@/stores/sync';
 
 interface SyncStatusBannerProps {
   compact?: boolean;
 }
+
+type StatusConfig = {
+  bgColor: string;
+  textColor: string;
+  icon: keyof typeof Feather.glyphMap;
+  message: string;
+};
 
 export function SyncStatusBanner({ compact = false }: SyncStatusBannerProps) {
   const status = useSyncStore((state) => state.status);
@@ -21,17 +29,12 @@ export function SyncStatusBanner({ compact = false }: SyncStatusBannerProps) {
 
   if (!shouldShow) return null;
 
-  const getStatusConfig = (): {
-    bgColor: string;
-    textColor: string;
-    icon: string;
-    message: string;
-  } => {
+  const getStatusConfig = (): StatusConfig => {
     if (!isOnline) {
       return {
         bgColor: 'bg-gray-700',
         textColor: 'text-white',
-        icon: '📡',
+        icon: 'wifi-off',
         message: 'オフライン',
       };
     }
@@ -41,21 +44,21 @@ export function SyncStatusBanner({ compact = false }: SyncStatusBannerProps) {
         return {
           bgColor: 'bg-blue-500',
           textColor: 'text-white',
-          icon: '🔄',
+          icon: 'refresh-cw',
           message: '同期中...',
         };
       case 'success':
         return {
           bgColor: 'bg-green-500',
           textColor: 'text-white',
-          icon: '✓',
+          icon: 'check-circle',
           message: '同期完了',
         };
       case 'error':
         return {
           bgColor: 'bg-red-500',
           textColor: 'text-white',
-          icon: '⚠️',
+          icon: 'alert-triangle',
           message: '同期エラー',
         };
       default:
@@ -63,14 +66,14 @@ export function SyncStatusBanner({ compact = false }: SyncStatusBannerProps) {
           return {
             bgColor: 'bg-amber-500',
             textColor: 'text-white',
-            icon: '⏳',
+            icon: 'clock',
             message: `${totalPending}件の同期待ち`,
           };
         }
         return {
           bgColor: 'bg-gray-500',
           textColor: 'text-white',
-          icon: '●',
+          icon: 'circle',
           message: '',
         };
     }
@@ -92,7 +95,7 @@ export function SyncStatusBanner({ compact = false }: SyncStatusBannerProps) {
           {status === 'syncing' ? (
             <ActivityIndicator size="small" color="white" />
           ) : (
-            <Text className="text-sm mr-1">{config.icon}</Text>
+            <Feather name={config.icon} size={14} color="#ffffff" style={{ marginRight: 4 }} />
           )}
           <Text className={`text-sm font-medium ${config.textColor}`}>
             {config.message}
@@ -113,7 +116,7 @@ export function SyncStatusBanner({ compact = false }: SyncStatusBannerProps) {
           {status === 'syncing' ? (
             <ActivityIndicator size="small" color="white" />
           ) : (
-            <Text className="text-lg mr-2">{config.icon}</Text>
+            <Feather name={config.icon} size={20} color="#ffffff" style={{ marginRight: 8 }} />
           )}
           <View className="flex-1">
             <Text className={`font-semibold ${config.textColor}`}>

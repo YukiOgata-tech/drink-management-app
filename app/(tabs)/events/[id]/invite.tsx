@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { Button, Card } from '@/components/ui';
 import { useEventsStore } from '@/stores/events';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -27,7 +28,7 @@ export default function InviteScreen() {
   }
 
   const inviteLink = `drinkmanagement://events/join?code=${event.inviteCode}`;
-  const shareText = `🎉 「${event.title}」への招待\n\n招待コード: ${event.inviteCode}\n\nこのコードをアプリで入力して参加してください！`;
+  const shareText = `「${event.title}」への招待\n\n招待コード: ${event.inviteCode}\n\nこのコードをアプリで入力して参加してください！`;
 
   const handleCopyCode = async () => {
     await Clipboard.setStringAsync(event.inviteCode);
@@ -69,9 +70,10 @@ export default function InviteScreen() {
       <View className="flex-1">
         {/* ヘッダー */}
         <View className="px-6 py-4 bg-white border-b border-gray-200">
-          <TouchableOpacity onPress={() => router.back()} className="mb-2">
-            <Text className="text-primary-600 font-semibold text-base">
-              ← 戻る
+          <TouchableOpacity onPress={() => router.back()} className="mb-2 flex-row items-center">
+            <Feather name="arrow-left" size={16} color="#0284c7" />
+            <Text className="text-primary-600 font-semibold text-base ml-1">
+              戻る
             </Text>
           </TouchableOpacity>
           <Text className="text-2xl font-bold text-gray-900">
@@ -79,12 +81,14 @@ export default function InviteScreen() {
           </Text>
         </View>
 
-        <ScrollView className="flex-1 px-6 py-6">
+        <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 100 }}>
           {/* イベント情報 */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <Card variant="elevated" className="mb-6 bg-gradient-to-br from-secondary-50 to-primary-50">
               <View className="items-center py-4">
-                <Text className="text-4xl mb-3">🎉</Text>
+                <View className="w-16 h-16 bg-secondary-100 rounded-full items-center justify-center mb-3">
+                  <Feather name="calendar" size={32} color="#f97316" />
+                </View>
                 <Text className="text-xl font-bold text-gray-900 text-center mb-2">
                   {event.title}
                 </Text>
@@ -117,7 +121,7 @@ export default function InviteScreen() {
                 </View>
                 <Button
                   title="コードをコピー"
-                  icon={<Text className="text-xl">📋</Text>}
+                  icon={<Feather name="copy" size={18} color="#6b7280" />}
                   onPress={handleCopyCode}
                   variant="outline"
                 />
@@ -159,21 +163,21 @@ export default function InviteScreen() {
               <View className="space-y-2">
                 <Button
                   title="LINEで共有"
-                  icon={<Text className="text-xl">💬</Text>}
+                  icon={<Feather name="message-circle" size={18} color="#ffffff" />}
                   onPress={handleShareToLine}
                   fullWidth
                   variant="primary"
                 />
                 <Button
                   title="その他の方法で共有"
-                  icon={<Text className="text-xl">📤</Text>}
+                  icon={<Feather name="share-2" size={18} color="#6b7280" />}
                   onPress={handleShare}
                   fullWidth
                   variant="outline"
                 />
                 <Button
                   title="リンクをコピー"
-                  icon={<Text className="text-xl">🔗</Text>}
+                  icon={<Feather name="link" size={18} color="#6b7280" />}
                   onPress={handleCopyLink}
                   fullWidth
                   variant="outline"
@@ -188,9 +192,12 @@ export default function InviteScreen() {
             className="mt-6 mb-6"
           >
             <Card variant="outlined" className="bg-blue-50 border-blue-200">
-              <Text className="text-base font-bold text-blue-900 mb-2">
-                📖 招待方法
-              </Text>
+              <View className="flex-row items-center mb-2">
+                <Feather name="book-open" size={16} color="#1e40af" style={{ marginRight: 6 }} />
+                <Text className="text-base font-bold text-blue-900">
+                  招待方法
+                </Text>
+              </View>
               <Text className="text-sm text-blue-800 leading-6">
                 1. 上記の方法で招待コードを共有{'\n'}
                 2. 受け取った人がアプリで招待コードを入力{'\n'}

@@ -11,7 +11,7 @@ export interface DatabaseError {
 // =====================================================
 
 /**
- * イベントを作成
+ * イベントを作成（RPC関数を使用）
  */
 export async function createEvent(params: {
   title: string;
@@ -22,21 +22,21 @@ export async function createEvent(params: {
   hostId: string;
 }): Promise<{ event: Event | null; error: DatabaseError | null }> {
   try {
-    const { data, error } = await supabase
-      .from('events')
-      .insert({
-        title: params.title,
-        description: params.description,
-        recording_rule: params.recordingRule,
-        required_approvals: params.requiredApprovals || 1,
-        started_at: params.startedAt,
-        host_id: params.hostId,
-      })
-      .select()
-      .single();
+    // RPC関数でイベントを作成（RLSをバイパス、イベントデータを直接返す）
+    const { data, error: rpcError } = await supabase.rpc('create_event_with_host', {
+      p_title: params.title,
+      p_description: params.description || null,
+      p_recording_rule: params.recordingRule,
+      p_required_approvals: params.requiredApprovals || 1,
+      p_started_at: params.startedAt,
+    });
 
-    if (error) {
-      return { event: null, error: { message: error.message, code: error.code } };
+    if (rpcError) {
+      return { event: null, error: { message: rpcError.message, code: rpcError.code } };
+    }
+
+    if (!data) {
+      return { event: null, error: { message: 'イベントの作成に失敗しました' } };
     }
 
     const event: Event = {
@@ -263,24 +263,25 @@ export async function getEventMembers(eventId: string): Promise<{ members: Event
         *,
         profiles:user_id (
           display_name,
-          avatar_url
+          avatar
         )
       `)
       .eq('event_id', eventId)
       .order('joined_at', { ascending: true });
 
     if (error) {
+      console.error('getEventMembers error:', error);
       return { members: [], error: { message: error.message, code: error.code } };
     }
 
-    const members: EventMember[] = data.map((item: any) => ({
+    const members: EventMember[] = (data || []).map((item: any) => ({
       eventId: item.event_id,
       userId: item.user_id,
       role: item.role,
       joinedAt: item.joined_at,
       leftAt: item.left_at,
       displayName: item.profiles?.display_name || '名無し',
-      avatar: item.profiles?.avatar_url,
+      avatar: item.profiles?.avatar,
     }));
 
     return { members, error: null };

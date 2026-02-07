@@ -65,7 +65,7 @@ export const dummyParticipants: User[] = [
 export const dummyEvents: Event[] = [
   {
     id: 'event-1',
-    title: '🎉 サークルの新年会',
+    title: 'サークルの新年会',
     description: 'テニスサークルのみんなで新年会！',
     startedAt: '2024-01-10T18:00:00Z',
     endedAt: '2024-01-10T22:00:00Z',
