@@ -210,13 +210,27 @@ export default function EventDetailScreen() {
                 戻る
               </Text>
             </TouchableOpacity>
-            {isHost && isActive && (
-              <TouchableOpacity onPress={handleEndEvent}>
-                <Text className="text-red-500 font-semibold text-base">
-                  終了
-                </Text>
+            <View className="flex-row items-center gap-4">
+              <TouchableOpacity
+                onPress={onRefresh}
+                disabled={refreshing}
+                className="p-2"
+                activeOpacity={0.7}
+              >
+                <Feather
+                  name="refresh-cw"
+                  size={18}
+                  color={refreshing ? '#9ca3af' : '#0284c7'}
+                />
               </TouchableOpacity>
-            )}
+              {isHost && isActive && (
+                <TouchableOpacity onPress={handleEndEvent}>
+                  <Text className="text-red-500 font-semibold text-base">
+                    終了
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           <View className="flex-row items-start justify-between">
             <View className="flex-1">
