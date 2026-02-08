@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User, XPSource, UserXP } from '@/types';
 import { signOut as authSignOut, getCurrentSession } from '@/lib/auth';
-import { updateProfile as dbUpdateProfile, getProfile, getUserWithProfile } from '@/lib/database';
+import { updateProfile as dbUpdateProfile, getProfile, getUserWithProfile, updateDisplayName as dbUpdateDisplayName } from '@/lib/database';
 import { addXPToProfile, fetchUserXP } from '@/lib/xp-api';
 import { getXPInfo } from '@/lib/xp';
 
@@ -12,6 +12,7 @@ interface UserState {
   hasAgreedToConsent: boolean;
   setUser: (user: User | null, isGuest?: boolean) => void;
   updateProfile: (profile: Partial<User['profile']>) => Promise<{ error: any | null }>;
+  updateDisplayName: (displayName: string) => Promise<{ error: any | null }>;
   refreshProfile: () => Promise<void>;
   agreeToConsent: () => void;
   logout: () => Promise<void>;
@@ -72,6 +73,47 @@ export const useUserStore = create<UserState>((set, get) => ({
         ? {
             ...state.user,
             profile: { ...state.user.profile, ...profile },
+            updatedAt: new Date().toISOString(),
+          }
+        : null,
+    }));
+
+    return { error: null };
+  },
+
+  updateDisplayName: async (displayName) => {
+    const state = get();
+
+    // ゲストユーザーの場合はローカルのみ更新
+    if (state.isGuest || !state.user) {
+      const now = new Date().toISOString();
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              displayName,
+              displayNameChangedAt: now,
+              updatedAt: now,
+            }
+          : null,
+      }));
+      return { error: null };
+    }
+
+    // 認証済みユーザーの場合はデータベースに保存
+    const { error, changedAt } = await dbUpdateDisplayName(state.user.id, displayName);
+
+    if (error) {
+      return { error };
+    }
+
+    // ローカルステートも更新
+    set((state) => ({
+      user: state.user
+        ? {
+            ...state.user,
+            displayName,
+            displayNameChangedAt: changedAt,
             updatedAt: new Date().toISOString(),
           }
         : null,

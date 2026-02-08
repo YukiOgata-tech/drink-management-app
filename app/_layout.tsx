@@ -147,6 +147,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="join-event" />
           <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="account" />
         </Stack>
         <StatusBar style="dark" />
         <NotificationPermissionModal

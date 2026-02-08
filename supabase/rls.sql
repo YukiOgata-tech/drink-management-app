@@ -384,6 +384,30 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER; -- SECURITY DEFINERでRLSをバイパス
 
 -- =====================================================
+-- 7. アカウント削除リクエストテーブルのRLSポリシー
+-- =====================================================
+ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
+
+-- ユーザーは自分のリクエストのみ閲覧可能
+CREATE POLICY "Users can view own deletion request"
+  ON public.account_deletion_requests
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- ユーザーは自分のリクエストを作成可能
+CREATE POLICY "Users can create own deletion request"
+  ON public.account_deletion_requests
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- ユーザーは自分のリクエストをキャンセル可能（pendingの場合のみ）
+CREATE POLICY "Users can cancel own pending deletion request"
+  ON public.account_deletion_requests
+  FOR UPDATE
+  USING (auth.uid() = user_id AND status = 'pending')
+  WITH CHECK (status = 'cancelled');
+
+-- =====================================================
 -- 完了メッセージ
 -- =====================================================
 DO $$

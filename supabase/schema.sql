@@ -17,6 +17,7 @@ CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   display_name TEXT NOT NULL,
+  display_name_changed_at TIMESTAMP WITH TIME ZONE, -- 表示名最終変更日時（1日1回制限用）
   avatar TEXT,
   birthday DATE, -- 誕生日
   height INTEGER CHECK (height > 0 AND height < 300), -- cm
@@ -303,3 +304,28 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION public.create_event_with_host IS 'イベントを作成しホストをメンバーとして追加（RLSをバイパス、イベントデータを返す）';
+
+-- =====================================================
+-- 8. アカウント削除リクエストテーブル
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.account_deletion_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'completed', 'cancelled')),
+  reason TEXT, -- ユーザーが入力した削除理由（任意）
+  requested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  processed_at TIMESTAMP WITH TIME ZONE, -- 管理者が処理した日時
+  admin_note TEXT, -- 管理者のメモ
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  UNIQUE(user_id) -- 1ユーザーにつき1つのアクティブなリクエストのみ
+);
+
+-- インデックス
+CREATE INDEX IF NOT EXISTS idx_deletion_requests_user_id ON public.account_deletion_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_deletion_requests_status ON public.account_deletion_requests(status);
+
+COMMENT ON TABLE public.account_deletion_requests IS 'アカウント削除リクエスト（管理者承認フロー）';
+COMMENT ON COLUMN public.account_deletion_requests.status IS 'pending=申請中, approved=承認済み, completed=削除完了, cancelled=キャンセル';
+COMMENT ON COLUMN public.account_deletion_requests.reason IS 'ユーザーが入力した削除理由';
+COMMENT ON COLUMN public.account_deletion_requests.admin_note IS '管理者のメモ（処理内容など）';

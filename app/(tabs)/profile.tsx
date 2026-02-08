@@ -286,7 +286,7 @@ export default function ProfileScreen() {
             </Animated.View>
           ) : (
             <Animated.View entering={FadeInDown.delay(50).duration(600)}>
-              <View className="mb-6">
+              <View className="mb-4">
                 <Button
                   title="ログアウト"
                   onPress={handleLogout}
@@ -294,6 +294,13 @@ export default function ProfileScreen() {
                   fullWidth
                 />
               </View>
+              <TouchableOpacity
+                onPress={() => router.push('/account')}
+                className="flex-row items-center justify-center py-3 mb-6"
+              >
+                <Feather name="settings" size={16} color="#6b7280" style={{ marginRight: 8 }} />
+                <Text className="text-gray-600 font-medium">アカウント管理</Text>
+              </TouchableOpacity>
             </Animated.View>
           )}
 
@@ -395,7 +402,7 @@ export default function ProfileScreen() {
                     onChangeText={setHeight}
                     keyboardType="numeric"
                     placeholder="例: 172"
-                    icon={<Feather name="move-vertical" size={20} color="#6b7280" />}
+                    icon={<Feather name="arrow-up" size={20} color="#6b7280" />}
                   />
                   <Input
                     label="体重 (kg)"
@@ -447,7 +454,7 @@ export default function ProfileScreen() {
                         : '未設定'
                     }
                   />
-                  <InfoRow icon="move-vertical" label="身長" value={user.profile.height ? `${user.profile.height}cm` : '未設定'} />
+                  <InfoRow icon="arrow-up" label="身長" value={user.profile.height ? `${user.profile.height}cm` : '未設定'} />
                   <InfoRow icon="activity" label="体重" value={user.profile.weight ? `${user.profile.weight}kg` : '未設定'} />
                   {user.profile.bio && (
                     <View>

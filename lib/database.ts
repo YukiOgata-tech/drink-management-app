@@ -95,6 +95,7 @@ export async function getUserWithProfile(userId: string): Promise<{
       email: data.email,
       emailConfirmed: true, // DBから取得した場合は確認済みとみなす
       displayName: data.display_name,
+      displayNameChangedAt: data.display_name_changed_at || undefined,
       avatar: data.avatar || undefined,
       profile: {
         birthday: data.birthday || undefined,
@@ -139,26 +140,61 @@ export function calculateAge(birthday: string | undefined): number {
 }
 
 /**
- * 表示名を更新
+ * 表示名を更新（1日1回制限付き）
  */
 export async function updateDisplayName(
   userId: string,
   displayName: string
-): Promise<{ error: DatabaseError | null }> {
+): Promise<{ error: DatabaseError | null; changedAt?: string }> {
   try {
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('profiles')
-      .update({ display_name: displayName })
+      .update({
+        display_name: displayName,
+        display_name_changed_at: now,
+      })
       .eq('id', userId);
 
     if (error) {
       return { error: { message: error.message, code: error.code } };
     }
 
-    return { error: null };
+    return { error: null, changedAt: now };
   } catch (err: any) {
     return { error: { message: err.message || '予期しないエラーが発生しました' } };
   }
+}
+
+/**
+ * 表示名変更が可能かチェック（1日1回制限）
+ */
+export function canChangeDisplayName(displayNameChangedAt?: string): {
+  canChange: boolean;
+  nextChangeAt?: Date;
+  hoursRemaining?: number;
+} {
+  if (!displayNameChangedAt) {
+    return { canChange: true };
+  }
+
+  const lastChanged = new Date(displayNameChangedAt);
+  const now = new Date();
+  const oneDayInMs = 24 * 60 * 60 * 1000;
+  const nextChangeAt = new Date(lastChanged.getTime() + oneDayInMs);
+
+  if (now >= nextChangeAt) {
+    return { canChange: true };
+  }
+
+  const msRemaining = nextChangeAt.getTime() - now.getTime();
+  const hoursRemaining = Math.ceil(msRemaining / (60 * 60 * 1000));
+
+  return {
+    canChange: false,
+    nextChangeAt,
+    hoursRemaining,
+  };
 }
 
 /**

@@ -4,6 +4,7 @@ export interface User {
   email: string;
   emailConfirmed: boolean;
   displayName: string;
+  displayNameChangedAt?: string; // 表示名最終変更日時（1日1回制限用）
   avatar?: string;
   profile: UserProfile;
   createdAt: string;
