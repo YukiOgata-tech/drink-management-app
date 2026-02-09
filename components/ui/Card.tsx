@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, ViewProps, StyleSheet, ViewStyle } from 'react-native';
+import { useThemeStore } from '@/stores/theme';
 
 interface CardProps extends Omit<ViewProps, 'style'> {
   variant?: 'default' | 'elevated' | 'outlined';
@@ -47,6 +48,9 @@ const parseClassName = (className?: string): ViewStyle => {
   if (className.includes('items-center')) style.alignItems = 'center';
   if (className.includes('justify-center')) style.justifyContent = 'center';
 
+  // 透明度
+  if (className.includes('opacity-50')) style.opacity = 0.5;
+
   return style;
 };
 
@@ -57,14 +61,17 @@ export function Card({
   className,
   ...props
 }: CardProps) {
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case 'elevated':
-        return styles.elevated;
+        return isDark ? darkStyles.elevated : lightStyles.elevated;
       case 'outlined':
-        return styles.outlined;
+        return isDark ? darkStyles.outlined : lightStyles.outlined;
       default:
-        return styles.default;
+        return isDark ? darkStyles.default : lightStyles.default;
     }
   };
 
@@ -85,6 +92,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
+});
+
+const lightStyles = StyleSheet.create({
   default: {
     backgroundColor: '#ffffff',
   },
@@ -100,5 +110,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
+  },
+});
+
+const darkStyles = StyleSheet.create({
+  default: {
+    backgroundColor: '#1f2937',
+  },
+  elevated: {
+    backgroundColor: '#1f2937',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  outlined: {
+    backgroundColor: '#1f2937',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
 });

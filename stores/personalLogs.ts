@@ -99,10 +99,11 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
           // 同期成功 - ローカルを更新
           await markLogAsSynced(log.id, supabaseId);
 
-          // XP付与
+          // XP付与（純アルコール量に応じて）
+          const baseXP = Math.floor(log.pureAlcoholG * log.count);
           const xpAmount = isFirstOfDay
-            ? XP_VALUES.DRINK_LOG + XP_VALUES.DAILY_BONUS
-            : XP_VALUES.DRINK_LOG;
+            ? baseXP + XP_VALUES.DAILY_BONUS
+            : baseXP;
 
           const xpResult = await userState.addXP(xpAmount, 'drink_log');
           leveledUp = xpResult.leveledUp;
@@ -137,9 +138,10 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
       try {
         await deletePersonalLogFromSupabase(log.supabaseId);
 
-        // 認証ユーザーの場合、借金XPを追加（同期済みの記録のみ）
+        // 認証ユーザーの場合、借金XPを追加（同期済みの記録のみ、純アルコール量分）
         if (!userState.isGuest && userState.user) {
-          await addNegativeXP(userState.user.id, XP_VALUES.DRINK_LOG);
+          const negativeXP = Math.floor(log.pureAlcoholG * log.count);
+          await addNegativeXP(userState.user.id, negativeXP);
           // ユーザーストアのXP情報を更新
           await userState.refreshXP();
         }
@@ -177,9 +179,10 @@ export const usePersonalLogsStore = create<PersonalLogsState>((set, get) => ({
       try {
         await deletePersonalLogFromSupabase(log.supabaseId);
 
-        // 認証ユーザーの場合、借金XPを追加（同期済みの記録のみ）
-        if (!userState.isGuest && userState.user) {
-          await addNegativeXP(userState.user.id, XP_VALUES.DRINK_LOG);
+        // 認証ユーザーの場合、借金XPを追加（同期済みの記録のみ、純アルコール量分）
+        if (!userState.isGuest && userState.user && log) {
+          const negativeXP = Math.floor(log.pureAlcoholG * log.count);
+          await addNegativeXP(userState.user.id, negativeXP);
           await userState.refreshXP();
         }
       } catch (error) {

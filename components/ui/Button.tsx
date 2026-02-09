@@ -14,6 +14,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useThemeStore } from '@/stores/theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -35,10 +36,24 @@ const variantStyles: Record<string, ViewStyle> = {
   danger: { backgroundColor: '#ef4444' },
 };
 
+const darkVariantStyles: Record<string, ViewStyle> = {
+  primary: { backgroundColor: '#0ea5e9' },
+  secondary: { backgroundColor: '#d946ef' },
+  outline: { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#38bdf8' },
+  danger: { backgroundColor: '#ef4444' },
+};
+
 const textVariantStyles: Record<string, TextStyle> = {
   primary: { color: '#ffffff' },
   secondary: { color: '#ffffff' },
   outline: { color: '#0ea5e9' },
+  danger: { color: '#ffffff' },
+};
+
+const darkTextVariantStyles: Record<string, TextStyle> = {
+  primary: { color: '#ffffff' },
+  secondary: { color: '#ffffff' },
+  outline: { color: '#38bdf8' },
   danger: { color: '#ffffff' },
 };
 
@@ -66,6 +81,8 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -81,6 +98,9 @@ export function Button({
     scale.value = withSpring(1);
   };
 
+  const currentVariantStyles = isDark ? darkVariantStyles : variantStyles;
+  const currentTextStyles = isDark ? darkTextVariantStyles : textVariantStyles;
+
   return (
     <AnimatedPressable
       onPressIn={handlePressIn}
@@ -89,7 +109,7 @@ export function Button({
       disabled={disabled || loading}
       style={[
         styles.base,
-        variantStyles[variant],
+        currentVariantStyles[variant],
         sizeStyles[size],
         fullWidth && styles.fullWidth,
         (disabled || loading) && styles.disabled,
@@ -101,7 +121,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'outline' ? '#0ea5e9' : 'white'}
+          color={variant === 'outline' ? (isDark ? '#38bdf8' : '#0ea5e9') : 'white'}
         />
       ) : (
         <>
@@ -109,7 +129,7 @@ export function Button({
           <Text
             style={[
               styles.text,
-              textVariantStyles[variant],
+              currentTextStyles[variant],
               textSizeStyles[size],
             ]}
           >

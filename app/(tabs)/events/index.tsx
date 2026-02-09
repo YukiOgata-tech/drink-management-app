@@ -7,6 +7,7 @@ import { Button, Card } from '@/components/ui';
 import { EventCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useThemeStore } from '@/stores/theme';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -22,6 +23,8 @@ export default function EventsScreen() {
   const totalCount = useEventsStore((state) => state.totalCount);
   const fetchEvents = useEventsStore((state) => state.fetchEvents);
   const loading = useEventsStore((state) => state.loading);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
 
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -61,26 +64,26 @@ export default function EventsScreen() {
   // ゲストユーザー向けの表示
   if (isGuest) {
     return (
-      <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <SyncStatusBanner />
         <View className="flex-1">
-          <View className="px-6 py-6 bg-white border-b border-gray-200">
+          <View className={`px-6 py-6 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <View className="flex-row items-center">
-              <Text className="text-2xl font-bold text-gray-900">イベント</Text>
+              <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
               <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
             </View>
-            <Text className="text-sm text-gray-500 mt-1">
+            <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               飲み会イベントを作成・管理
             </Text>
           </View>
           <View className="flex-1 items-center justify-center px-6">
-            <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-              <Feather name="lock" size={40} color="#6b7280" />
+            <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+              <Feather name="lock" size={40} color={isDark ? '#9ca3af' : '#6b7280'} />
             </View>
-            <Text className="text-xl font-bold text-gray-900 mb-2 text-center">
+            <Text className={`text-xl font-bold mb-2 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
               ログインが必要です
             </Text>
-            <Text className="text-gray-500 text-center mb-6">
+            <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               イベント機能を利用するには{'\n'}アカウントでログインしてください
             </Text>
             <Button
@@ -98,18 +101,18 @@ export default function EventsScreen() {
   const showViewAllButton = totalCount >= SHOW_ALL_PAGE_THRESHOLD;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* オフライン/同期ステータスバナー */}
       <SyncStatusBanner />
 
       <View className="flex-1">
         {/* ヘッダー */}
-        <View className="px-6 py-6 bg-white border-b border-gray-200">
+        <View className={`px-6 py-6 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <View className="flex-row items-center">
-            <Text className="text-2xl font-bold text-gray-900">イベント</Text>
+            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
             <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
           </View>
-          <Text className="text-sm text-gray-500 mt-1">
+          <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             飲み会イベントを作成・管理
           </Text>
         </View>
@@ -153,11 +156,11 @@ export default function EventsScreen() {
             className="mt-6"
           >
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-bold text-gray-900">
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 イベント一覧
               </Text>
               {totalCount > 0 && (
-                <Text className="text-sm text-gray-500">
+                <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {events.length} / {totalCount}件
                 </Text>
               )}
@@ -184,11 +187,11 @@ export default function EventsScreen() {
                     {showViewAllButton ? (
                       <TouchableOpacity
                         onPress={handleViewAll}
-                        className="bg-white border border-gray-300 rounded-xl py-4 items-center"
+                        className={`border rounded-xl py-4 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
                       >
                         <View className="flex-row items-center">
-                          <Feather name="list" size={18} color="#6b7280" style={{ marginRight: 8 }} />
-                          <Text className="text-gray-700 font-semibold">
+                          <Feather name="list" size={18} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 8 }} />
+                          <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             すべてのイベントを表示（{totalCount}件）
                           </Text>
                         </View>
@@ -197,7 +200,7 @@ export default function EventsScreen() {
                       <TouchableOpacity
                         onPress={handleLoadMore}
                         disabled={isLoadingMore}
-                        className={`bg-white border border-gray-300 rounded-xl py-4 items-center ${
+                        className={`border rounded-xl py-4 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'} ${
                           isLoadingMore ? 'opacity-50' : ''
                         }`}
                       >
@@ -205,10 +208,10 @@ export default function EventsScreen() {
                           <Feather
                             name={isLoadingMore ? 'loader' : 'chevron-down'}
                             size={18}
-                            color="#6b7280"
+                            color={isDark ? '#9ca3af' : '#6b7280'}
                             style={{ marginRight: 8 }}
                           />
-                          <Text className="text-gray-700 font-semibold">
+                          <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
                           </Text>
                         </View>
@@ -220,10 +223,10 @@ export default function EventsScreen() {
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-12">
-                  <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
-                    <Feather name="calendar" size={32} color="#9ca3af" />
+                  <View className={`w-16 h-16 rounded-full items-center justify-center mb-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <Feather name="calendar" size={32} color={isDark ? '#6b7280' : '#9ca3af'} />
                   </View>
-                  <Text className="text-gray-500 mb-4">
+                  <Text className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     まだイベントがありません
                   </Text>
                   <Button

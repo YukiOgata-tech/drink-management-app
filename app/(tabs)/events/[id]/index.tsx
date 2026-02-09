@@ -114,13 +114,15 @@ export default function EventDetailScreen() {
                 // イベント完了XP付与
                 const xpResult = await addXP(XP_VALUES.EVENT_COMPLETE, 'event_complete');
 
-                // このイベントで自分が記録した飲酒記録数を計算
+                // このイベントで自分が記録した飲酒記録を計算
                 const myLogs = drinkLogs.filter(
                   (log) => log.userId === user.id && log.status === 'approved'
                 );
                 const drinkLogsCount = myLogs.reduce((sum, log) => sum + log.count, 0);
-                // 飲酒記録で得たXP（既に付与済みだが表示用）
-                const drinkLogsXP = drinkLogsCount * XP_VALUES.DRINK_LOG;
+                // 飲酒記録で得たXP（既に付与済みだが表示用、純アルコール量ベース）
+                const drinkLogsXP = myLogs.reduce(
+                  (sum, log) => sum + Math.floor(log.pureAlcoholG), 0
+                );
 
                 // 結果データを設定
                 setResultData({

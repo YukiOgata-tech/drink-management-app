@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -16,6 +18,7 @@ import { useDrinksStore } from '@/stores/drinks';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDevStore } from '@/stores/dev';
+import { useThemeStore } from '@/stores/theme';
 import { PersonalDrinkLog } from '@/types';
 import { XP_VALUES } from '@/lib/xp';
 import Animated, { FadeInDown, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -47,12 +50,29 @@ export default function DrinksScreen() {
   const UNDO_TIMEOUT = 5000; // 5秒間Undo可能
 
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDrink, setSelectedDrink] = useState<any>(null);
   const [count, setCount] = useState(1);
+
+  // スクロール関連
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const SCROLL_THRESHOLD = 100; // この高さ以上スクロールしたらボタン表示
+
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollToTop(offsetY > SCROLL_THRESHOLD);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   // ソフトデリート実行（Undo可能）
   const handleDeleteLog = useCallback(async (log: PersonalDrinkLog) => {
@@ -158,20 +178,25 @@ export default function DrinksScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <View className="flex-1">
         {/* ヘッダー */}
-        <View className="px-6 py-6 bg-white border-b border-gray-200">
+        <View className={`px-6 py-6 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <View className="flex-row items-center">
-            <Text className="text-2xl font-bold text-gray-900">飲酒記録</Text>
+            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>飲酒記録</Text>
             <Feather name="edit-3" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
           </View>
-          <Text className="text-sm text-gray-500 mt-1">
+          <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             日常の飲酒を記録しましょう
           </Text>
         </View>
 
-        <ScrollView className="flex-1 px-6 py-6">
+        <ScrollView
+          ref={scrollViewRef}
+          className="flex-1 px-6 py-6"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
           {/* 記録追加ボタン */}
           <TouchableOpacity
             onPress={() => {
@@ -188,11 +213,11 @@ export default function DrinksScreen() {
           {/* 履歴 */}
           <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mt-6">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-bold text-gray-900">
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 最近の記録
               </Text>
               {recentPersonalLogs.length > 0 && (
-                <Text className="text-xs text-gray-400">
+                <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   長押しで削除
                 </Text>
               )}
@@ -224,9 +249,9 @@ export default function DrinksScreen() {
                       dayjs(otherLog.recordedAt).isBefore(dayjs(log.recordedAt))
                   );
 
-                  // XP計算（同期済みの記録のみXPが付与されている）
+                  // XP計算（同期済みの記録のみXPが付与されている、純アルコール量分）
                   const earnedXP = log.syncStatus === 'synced' || log.supabaseId
-                    ? XP_VALUES.DRINK_LOG + (isFirstOfDay ? XP_VALUES.DAILY_BONUS : 0)
+                    ? Math.floor(log.pureAlcoholG * log.count) + (isFirstOfDay ? XP_VALUES.DAILY_BONUS : 0)
                     : 0;
 
                   // 削除済みかどうか
@@ -251,7 +276,7 @@ export default function DrinksScreen() {
                             </Text>
                             <View className="flex-1">
                               <View className="flex-row items-center">
-                                <Text className={`text-base font-semibold ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                <Text className={`text-base font-semibold ${isDeleted ? 'text-gray-400 line-through' : (isDark ? 'text-white' : 'text-gray-900')}`}>
                                   {log.drinkName}
                                 </Text>
                                 {isDeleted && (
@@ -269,10 +294,10 @@ export default function DrinksScreen() {
                                   </View>
                                 )}
                               </View>
-                              <Text className={`text-sm mt-1 ${isDeleted ? 'text-gray-300' : 'text-gray-500'}`}>
+                              <Text className={`text-sm mt-1 ${isDeleted ? 'text-gray-300' : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>
                                 {log.count}杯 • {log.pureAlcoholG.toFixed(1)}g
                               </Text>
-                              <Text className={`text-xs mt-1 ${isDeleted ? 'text-gray-300' : 'text-gray-400'}`}>
+                              <Text className={`text-xs mt-1 ${isDeleted ? 'text-gray-300' : (isDark ? 'text-gray-500' : 'text-gray-400')}`}>
                                 {dayjs(log.recordedAt).format('M月D日 HH:mm')}
                               </Text>
                               {!isDeleted && log.memo && (
@@ -310,10 +335,10 @@ export default function DrinksScreen() {
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-12">
-                  <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-2">
-                    <Feather name="edit-3" size={32} color="#9ca3af" />
+                  <View className={`w-16 h-16 rounded-full items-center justify-center mb-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <Feather name="edit-3" size={32} color={isDark ? '#6b7280' : '#9ca3af'} />
                   </View>
-                  <Text className="text-gray-500 mb-4">まだ記録がありません</Text>
+                  <Text className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>まだ記録がありません</Text>
                   <Button
                     title="最初の記録を追加"
                     size="sm"
@@ -327,6 +352,30 @@ export default function DrinksScreen() {
             )}
           </Animated.View>
         </ScrollView>
+
+        {/* トップへ戻るフローティングボタン */}
+        {showScrollToTop && (
+          <Animated.View
+            entering={SlideInDown.duration(300)}
+            exiting={SlideOutDown.duration(300)}
+            className="absolute bottom-28 right-4"
+          >
+            <TouchableOpacity
+              onPress={scrollToTop}
+              activeOpacity={0.8}
+              className="bg-primary-500 w-11 h-11 rounded-full items-center justify-center"
+              style={{
+                shadowColor: '#0ea5e9',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+            >
+              <Feather name="arrow-up" size={18} color="#ffffff" />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </View>
 
       {/* 記録追加モーダル */}

@@ -213,9 +213,11 @@ export default function AddDrinkScreen() {
         // 当日初回記録かチェック
         const { hasRecorded } = await hasRecordedToday(user.id);
         const isFirstOfDay = !hasRecorded;
+        // 純アルコール量に応じてXPを付与（1g = 1 XP）
+        const baseXP = Math.floor(selectedDrink.pureAlcoholG * count);
         const xpAmount = isFirstOfDay
-          ? XP_VALUES.DRINK_LOG + XP_VALUES.DAILY_BONUS
-          : XP_VALUES.DRINK_LOG;
+          ? baseXP + XP_VALUES.DAILY_BONUS
+          : baseXP;
 
         const xpResult = await addXP(xpAmount, 'drink_log');
         leveledUp = xpResult.leveledUp;

@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TextStyle,
 } from 'react-native';
+import { useThemeStore } from '@/stores/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -24,14 +25,25 @@ export function Input({
   style,
   ...props
 }: InputProps) {
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputWrapper, error && styles.inputWrapperError]}>
+      {label && (
+        <Text style={[styles.label, isDark && darkStyles.label]}>{label}</Text>
+      )}
+      <View
+        style={[
+          styles.inputWrapper,
+          isDark && darkStyles.inputWrapper,
+          error && styles.inputWrapperError,
+        ]}
+      >
         {icon && <View style={styles.iconWrapper}>{icon}</View>}
         <TextInput
-          style={[styles.input, style as TextStyle]}
-          placeholderTextColor="#9ca3af"
+          style={[styles.input, isDark && darkStyles.input, style as TextStyle]}
+          placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
           autoCorrect={false}
           spellCheck={false}
           {...props}
@@ -39,7 +51,9 @@ export function Input({
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
       {helperText && !error && (
-        <Text style={styles.helperText}>{helperText}</Text>
+        <Text style={[styles.helperText, isDark && darkStyles.helperText]}>
+          {helperText}
+        </Text>
       )}
     </View>
   );
@@ -87,5 +101,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     marginTop: 4,
+  },
+});
+
+const darkStyles = StyleSheet.create({
+  label: {
+    color: '#e5e7eb',
+  },
+  inputWrapper: {
+    backgroundColor: '#374151',
+    borderColor: '#4b5563',
+  },
+  input: {
+    color: '#f9fafb',
+  },
+  helperText: {
+    color: '#9ca3af',
   },
 });

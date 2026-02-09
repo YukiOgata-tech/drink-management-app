@@ -16,6 +16,7 @@ import { Button, Card, Input } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
 import { useSyncStore } from '@/stores/sync';
+import { useThemeStore, ThemeMode } from '@/stores/theme';
 import { resendConfirmationEmail } from '@/lib/auth';
 import { calculateAge } from '@/lib/database';
 import { getXPInfo, getXPToNextLevel } from '@/lib/xp';
@@ -39,6 +40,12 @@ export default function ProfileScreen() {
   }, [isGuest, user?.id]);
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const toggleDummyData = useDevStore((state) => state.toggleDummyData);
+
+  // テーマ関連
+  const themeMode = useThemeStore((state) => state.mode);
+  const setThemeMode = useThemeStore((state) => state.setMode);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
 
   // 同期関連
   const syncStatus = useSyncStore((state) => state.status);
@@ -171,7 +178,7 @@ export default function ProfileScreen() {
   const totalPending = pendingPersonalLogs + pendingEventLogs;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* オフライン/同期ステータスバナー */}
       <SyncStatusBanner />
 
@@ -188,10 +195,10 @@ export default function ProfileScreen() {
                 <Feather name="camera" size={16} color="#ffffff" />
               </View>
             </TouchableOpacity>
-            <Text className="text-2xl font-bold text-gray-900">
+            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {user.displayName}
             </Text>
-            <Text className="text-sm text-gray-500">{user.email}</Text>
+            <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{user.email}</Text>
           </View>
 
           {/* レベル表示（認証ユーザーのみ） */}
@@ -200,22 +207,22 @@ export default function ProfileScreen() {
               <Card variant="elevated" className="mb-6">
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
-                    <View className="bg-primary-100 rounded-full w-12 h-12 items-center justify-center mr-3">
+                    <View className={`rounded-full w-12 h-12 items-center justify-center mr-3 ${isDark ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
                       <Text className="text-2xl font-bold text-primary-600">
                         {xpInfo.level}
                       </Text>
                     </View>
                     <View>
-                      <Text className="text-lg font-bold text-gray-900">
+                      <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         レベル {xpInfo.level}
                       </Text>
-                      <Text className="text-xs text-gray-500">
+                      <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {xpInfo.totalXP.toLocaleString()} XP
                       </Text>
                     </View>
                   </View>
                   <View className="items-end">
-                    <Text className="text-xs text-gray-500">
+                    <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       次のレベルまで
                     </Text>
                     <Text className="text-sm font-semibold text-primary-600">
@@ -224,25 +231,25 @@ export default function ProfileScreen() {
                   </View>
                 </View>
                 {/* プログレスバー */}
-                <View className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <View className={`h-3 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                   <View
                     className="h-full bg-primary-500 rounded-full"
                     style={{ width: `${Math.min(100, xpInfo.progress)}%` }}
                   />
                 </View>
-                <Text className="text-xs text-gray-400 text-center mt-2">
+                <Text className={`text-xs text-center mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   {xpInfo.currentLevelXP.toLocaleString()} / {xpInfo.nextLevelXP.toLocaleString()} XP
                 </Text>
                 {/* 借金XP表示 */}
                 {xpInfo.negativeXP > 0 && (
-                  <View className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <View className={`mt-3 border rounded-lg p-3 ${isDark ? 'bg-amber-900/20 border-amber-700' : 'bg-amber-50 border-amber-200'}`}>
                     <View className="flex-row items-center">
-                      <Feather name="alert-triangle" size={18} color="#b45309" style={{ marginRight: 8 }} />
+                      <Feather name="alert-triangle" size={18} color={isDark ? '#fbbf24' : '#b45309'} style={{ marginRight: 8 }} />
                       <View className="flex-1">
-                        <Text className="text-xs font-semibold text-amber-700">
+                        <Text className={`text-xs font-semibold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
                           借金XP: {xpInfo.negativeXP.toLocaleString()} XP
                         </Text>
-                        <Text className="text-xs text-amber-600 mt-0.5">
+                        <Text className={`text-xs mt-0.5 ${isDark ? 'text-amber-300/80' : 'text-amber-600'}`}>
                           次回の記録追加時に相殺されます
                         </Text>
                       </View>
@@ -256,15 +263,15 @@ export default function ProfileScreen() {
           {/* ゲストモードまたはログアウト */}
           {isGuest ? (
             <Animated.View entering={FadeInDown.delay(50).duration(600)}>
-              <Card variant="elevated" className="mb-6 bg-gradient-to-br from-primary-50 to-secondary-50">
+              <Card variant="elevated" className={`mb-6 ${isDark ? 'bg-gradient-to-br from-primary-900/20 to-secondary-900/20' : 'bg-gradient-to-br from-primary-50 to-secondary-50'}`}>
                 <View className="items-center py-4">
-                  <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                    <Feather name="user" size={40} color="#6b7280" />
+                  <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <Feather name="user" size={40} color={isDark ? '#9ca3af' : '#6b7280'} />
                   </View>
-                  <Text className="text-xl font-bold text-gray-900 mb-2">
+                  <Text className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     ゲストモードで利用中
                   </Text>
-                  <Text className="text-sm text-gray-600 text-center mb-6 px-4">
+                  <Text className={`text-sm text-center mb-6 px-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     グループイベントに参加するには{'\n'}アカウントの作成が必要です
                   </Text>
                   <View className="w-full space-y-3">
@@ -298,8 +305,8 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/account')}
                 className="flex-row items-center justify-center py-3 mb-6"
               >
-                <Feather name="settings" size={16} color="#6b7280" style={{ marginRight: 8 }} />
-                <Text className="text-gray-600 font-medium">アカウント管理</Text>
+                <Feather name="settings" size={16} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 8 }} />
+                <Text className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>アカウント管理</Text>
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -334,13 +341,13 @@ export default function ProfileScreen() {
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <Card variant="elevated" className="mb-6">
               <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-lg font-bold text-gray-900">
+                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   基本情報
                 </Text>
                 {!isEditing && (
                   <TouchableOpacity
                     onPress={() => setIsEditing(true)}
-                    className="bg-primary-50 px-4 py-2 rounded-lg"
+                    className={`px-4 py-2 rounded-lg ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}
                   >
                     <Text className="text-primary-600 font-semibold">
                       編集
@@ -353,15 +360,15 @@ export default function ProfileScreen() {
                 <View>
                   {/* 誕生日 */}
                   <View className="mb-4">
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
+                    <Text className={`text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       誕生日
                     </Text>
                     <TouchableOpacity
                       onPress={() => setShowDatePicker(true)}
-                      className="bg-white border border-gray-300 rounded-xl px-4 py-3 flex-row items-center"
+                      className={`border rounded-xl px-4 py-3 flex-row items-center ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
                     >
-                      <Feather name="gift" size={20} color="#6b7280" style={{ marginRight: 12 }} />
-                      <Text className="text-base text-gray-900 flex-1">
+                      <Feather name="gift" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
+                      <Text className={`text-base flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {birthday
                           ? new Date(birthday).toLocaleDateString('ja-JP', {
                               year: 'numeric',
@@ -474,11 +481,11 @@ export default function ProfileScreen() {
           {/* 健康に関する情報 */}
           <Animated.View entering={FadeInDown.delay(200).duration(600)}>
             <Card variant="elevated" className="mb-6">
-              <Text className="text-lg font-bold text-gray-900 mb-4">
+              <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 適正飲酒量の目安
               </Text>
-              <View className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <Text className="text-sm text-amber-800 leading-6">
+              <View className={`border rounded-xl p-4 ${isDark ? 'bg-amber-900/20 border-amber-700' : 'bg-amber-50 border-amber-200'}`}>
+                <Text className={`text-sm leading-6 ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
                   {user.profile.gender === 'male'
                     ? '成人男性の1日あたりの適正飲酒量は純アルコール換算で約20gとされています。'
                     : user.profile.gender === 'female'
@@ -494,32 +501,32 @@ export default function ProfileScreen() {
           {/* 法的情報・ヘルプ */}
           <Animated.View entering={FadeInDown.delay(250).duration(600)}>
             <Card variant="elevated" className="mb-6">
-              <Text className="text-lg font-bold text-gray-900 mb-4">
+              <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 情報・サポート
               </Text>
               <View className="space-y-2">
                 <TouchableOpacity
                   onPress={() => router.push('/legal/drinking-guide')}
-                  className="flex-row items-center py-3 border-b border-gray-100"
+                  className={`flex-row items-center py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}
                 >
-                  <Feather name="book-open" size={20} color="#6b7280" style={{ marginRight: 12 }} />
-                  <Text className="flex-1 text-base text-gray-800">飲酒ガイドライン</Text>
+                  <Feather name="book-open" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
+                  <Text className={`flex-1 text-base ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>飲酒ガイドライン</Text>
                   <Feather name="chevron-right" size={16} color="#9ca3af" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => router.push('/legal/terms')}
-                  className="flex-row items-center py-3 border-b border-gray-100"
+                  className={`flex-row items-center py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}
                 >
-                  <Feather name="file-text" size={20} color="#6b7280" style={{ marginRight: 12 }} />
-                  <Text className="flex-1 text-base text-gray-800">利用規約</Text>
+                  <Feather name="file-text" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
+                  <Text className={`flex-1 text-base ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>利用規約</Text>
                   <Feather name="chevron-right" size={16} color="#9ca3af" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => router.push('/legal/privacy-policy')}
                   className="flex-row items-center py-3"
                 >
-                  <Feather name="lock" size={20} color="#6b7280" style={{ marginRight: 12 }} />
-                  <Text className="flex-1 text-base text-gray-800">プライバシーポリシー</Text>
+                  <Feather name="lock" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
+                  <Text className={`flex-1 text-base ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>プライバシーポリシー</Text>
                   <Feather name="chevron-right" size={16} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
@@ -531,11 +538,11 @@ export default function ProfileScreen() {
             <Animated.View entering={FadeInDown.delay(300).duration(600)}>
               <Card variant="elevated" className="mb-6">
                 <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-lg font-bold text-gray-900">
+                  <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     データ同期
                   </Text>
-                  <View className={`px-3 py-1 rounded-full ${isOnline ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    <Text className={`text-xs font-semibold ${isOnline ? 'text-green-600' : 'text-gray-600'}`}>
+                  <View className={`px-3 py-1 rounded-full ${isOnline ? (isDark ? 'bg-green-900/30' : 'bg-green-100') : (isDark ? 'bg-gray-700' : 'bg-gray-100')}`}>
+                    <Text className={`text-xs font-semibold ${isOnline ? 'text-green-600' : (isDark ? 'text-gray-400' : 'text-gray-600')}`}>
                       {isOnline ? 'オンライン' : 'オフライン'}
                     </Text>
                   </View>
@@ -543,15 +550,15 @@ export default function ProfileScreen() {
 
                 <View className="space-y-3 mb-4">
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-sm text-gray-600">同期待ちデータ</Text>
+                    <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>同期待ちデータ</Text>
                     <Text className={`text-sm font-semibold ${totalPending > 0 ? 'text-amber-600' : 'text-green-600'}`}>
                       {totalPending > 0 ? `${totalPending}件` : '全て同期済み'}
                     </Text>
                   </View>
                   {lastSyncAt && (
                     <View className="flex-row items-center justify-between">
-                      <Text className="text-sm text-gray-600">最終同期</Text>
-                      <Text className="text-sm text-gray-500">
+                      <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>最終同期</Text>
+                      <Text className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                         {new Date(lastSyncAt).toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
@@ -573,45 +580,93 @@ export default function ProfileScreen() {
             </Animated.View>
           )}
 
-          {/* 開発モード設定 */}
-          <Animated.View entering={FadeInDown.delay(350).duration(600)}>
+          {/* テーマ設定 */}
+          <Animated.View entering={FadeInDown.delay(340).duration(600)}>
             <Card variant="elevated" className="mb-6">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <Text className="text-lg font-bold text-gray-900 mb-1">
-                    開発モード
-                  </Text>
-                  <Text className="text-sm text-gray-500">
-                    ダミーデータを{isDummyDataEnabled ? '表示中' : '非表示'}
-                  </Text>
-                </View>
-                <Switch
-                  value={isDummyDataEnabled}
-                  onValueChange={() => {
-                    toggleDummyData();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  trackColor={{ false: '#e5e7eb', true: '#0ea5e9' }}
-                  thumbColor={isDummyDataEnabled ? '#ffffff' : '#f4f3f4'}
-                />
+              <Text className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+                テーマ設定
+              </Text>
+              <View className="flex-row gap-2">
+                {([
+                  { value: 'light', label: 'ライト', icon: 'sun' },
+                  { value: 'dark', label: 'ダーク', icon: 'moon' },
+                  { value: 'system', label: '自動', icon: 'smartphone' },
+                ] as { value: ThemeMode; label: string; icon: keyof typeof Feather.glyphMap }[]).map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => {
+                      setThemeMode(option.value);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    className={`flex-1 py-3 rounded-xl items-center ${
+                      themeMode === option.value
+                        ? 'bg-primary-500'
+                        : 'bg-gray-100 dark:bg-gray-700'
+                    }`}
+                  >
+                    <Feather
+                      name={option.icon}
+                      size={20}
+                      color={themeMode === option.value ? '#ffffff' : isDark ? '#d1d5db' : '#6b7280'}
+                    />
+                    <Text
+                      className={`text-sm mt-1 ${
+                        themeMode === option.value
+                          ? 'text-white font-semibold'
+                          : 'text-gray-600 dark:text-gray-300'
+                      }`}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </Card>
           </Animated.View>
 
-          {/* 統計情報 */}
-          {isDummyDataEnabled && (
-            <Animated.View entering={FadeInDown.delay(400).duration(600)}>
-              <Card variant="elevated">
-                <Text className="text-lg font-bold text-gray-900 mb-4">
-                  あなたの記録（ダミーデータ）
-                </Text>
-                <View className="flex-row justify-around">
-                  <StatBox label="総記録数" value="12" icon="bar-chart-2" />
-                  <StatBox label="イベント参加" value="3" icon="calendar" />
-                  <StatBox label="平均/日" value="1.5杯" icon="trending-up" />
-                </View>
-              </Card>
-            </Animated.View>
+          {/* 開発モード設定（開発環境のみ表示） */}
+          {__DEV__ && (
+            <>
+              <Animated.View entering={FadeInDown.delay(350).duration(600)}>
+                <Card variant="elevated" className="mb-6">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        開発モード
+                      </Text>
+                      <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        ダミーデータを{isDummyDataEnabled ? '表示中' : '非表示'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={isDummyDataEnabled}
+                      onValueChange={() => {
+                        toggleDummyData();
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      trackColor={{ false: isDark ? '#374151' : '#e5e7eb', true: '#0ea5e9' }}
+                      thumbColor={isDummyDataEnabled ? '#ffffff' : '#f4f3f4'}
+                    />
+                  </View>
+                </Card>
+              </Animated.View>
+
+              {/* 統計情報 */}
+              {isDummyDataEnabled && (
+                <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+                  <Card variant="elevated">
+                    <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      あなたの記録（ダミーデータ）
+                    </Text>
+                    <View className="flex-row justify-around">
+                      <StatBox label="総記録数" value="12" icon="bar-chart-2" isDark={isDark} />
+                      <StatBox label="イベント参加" value="3" icon="calendar" isDark={isDark} />
+                      <StatBox label="平均/日" value="1.5杯" icon="trending-up" isDark={isDark} />
+                    </View>
+                  </Card>
+                </Animated.View>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -620,25 +675,28 @@ export default function ProfileScreen() {
 }
 
 function InfoRow({ icon, label, value }: { icon: keyof typeof Feather.glyphMap; label: string; value: string }) {
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+
   return (
     <View className="flex-row items-center">
-      <Feather name={icon} size={20} color="#6b7280" style={{ marginRight: 12 }} />
+      <Feather name={icon} size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
       <View className="flex-1">
-        <Text className="text-sm text-gray-500">{label}</Text>
-        <Text className="text-base font-semibold text-gray-900">{value}</Text>
+        <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</Text>
+        <Text className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{value}</Text>
       </View>
     </View>
   );
 }
 
-function StatBox({ label, value, icon }: { label: string; value: string; icon: keyof typeof Feather.glyphMap }) {
+function StatBox({ label, value, icon, isDark }: { label: string; value: string; icon: keyof typeof Feather.glyphMap; isDark?: boolean }) {
   return (
     <View className="items-center">
-      <View className="w-12 h-12 bg-primary-100 rounded-full items-center justify-center mb-2">
+      <View className={`w-12 h-12 rounded-full items-center justify-center mb-2 ${isDark ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
         <Feather name={icon} size={24} color="#0ea5e9" />
       </View>
       <Text className="text-2xl font-bold text-primary-600">{value}</Text>
-      <Text className="text-xs text-gray-500 mt-1">{label}</Text>
+      <Text className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</Text>
     </View>
   );
 }

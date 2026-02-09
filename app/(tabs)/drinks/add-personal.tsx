@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -21,13 +23,14 @@ import { useProductsStore } from '@/stores/products';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDrinksStore } from '@/stores/drinks';
 import { useUserStore } from '@/stores/user';
+import { useThemeStore } from '@/stores/theme';
 import { DrinkCategory, Product, CustomDrink, DefaultDrink } from '@/types';
 import { calculatePureAlcohol } from '@/lib/products';
 import {
   getAddPersonalCollapsedSections,
   setAddPersonalCollapsedSection,
 } from '@/lib/storage/uiPreferences';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 // Android用のLayoutAnimationを有効化
@@ -126,6 +129,9 @@ export default function AddPersonalDrinkScreen() {
 
   const defaultDrinks = useDrinksStore((state) => state.defaultDrinks);
 
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+
   // 複数選択対応
   const [selectedDrinks, setSelectedDrinks] = useState<SelectedDrinkItem[]>([]);
   const [memo, setMemo] = useState('');
@@ -133,6 +139,21 @@ export default function AddPersonalDrinkScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<DrinkCategory>('beer');
   const [isSaving, setIsSaving] = useState(false);
+
+  // スクロール関連
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const SCROLL_THRESHOLD = 150; // この高さ以上スクロールしたらボタン表示
+
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowScrollToTop(offsetY > SCROLL_THRESHOLD);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   // セクション折りたたみ状態
   const [collapsedSections, setCollapsedSections] = useState({
@@ -413,13 +434,13 @@ export default function AddPersonalDrinkScreen() {
   const totalCount = selectedDrinks.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         {/* ヘッダー */}
-        <View className="px-6 py-4 bg-white border-b border-gray-200">
+        <View className={`px-6 py-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <View className="flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
               <Feather name="arrow-left" size={16} color="#0284c7" />
@@ -427,13 +448,13 @@ export default function AddPersonalDrinkScreen() {
                 戻る
               </Text>
             </TouchableOpacity>
-            <Text className="text-lg font-bold text-gray-900">個人記録を追加</Text>
+            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>個人記録を追加</Text>
             <View style={{ width: 50 }} />
           </View>
           {/* 選択件数バッジ */}
           {selectedDrinks.length > 0 && (
             <View className="mt-2 flex-row items-center justify-center">
-              <View className="bg-primary-100 px-3 py-1 rounded-full">
+              <View className={`px-3 py-1 rounded-full ${isDark ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
                 <Text className="text-primary-700 font-semibold text-sm">
                   {selectedDrinks.length}件選択中（{totalCount}杯）
                 </Text>
@@ -442,16 +463,22 @@ export default function AddPersonalDrinkScreen() {
           )}
         </View>
 
-        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollViewRef}
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
           {/* 選択中のドリンク一覧 */}
           {selectedDrinks.length > 0 && (
             <Animated.View entering={FadeIn.duration(300)} className="px-6 pt-4">
-              <Card variant="elevated" className="bg-primary-50">
+              <Card variant="elevated" className={isDark ? 'bg-primary-900/20' : 'bg-primary-50'}>
                 <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-base font-bold text-gray-900">
+                  <Text className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     選択中のドリンク
                   </Text>
-                  <Text className="text-sm text-gray-500">
+                  <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     最大{MAX_SELECTIONS}件
                   </Text>
                 </View>
@@ -459,25 +486,25 @@ export default function AddPersonalDrinkScreen() {
                 {selectedDrinks.map((item) => (
                   <View
                     key={item.id}
-                    className="flex-row items-center bg-white rounded-xl p-3 mb-2"
+                    className={`flex-row items-center rounded-xl p-3 mb-2 ${isDark ? 'bg-gray-700' : 'bg-white'}`}
                   >
                     <Text className="text-2xl mr-2">{item.drink.emoji || '🍺'}</Text>
                     <View className="flex-1">
-                      <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
+                      <Text className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} numberOfLines={1}>
                         {item.drink.name}
                       </Text>
-                      <Text className="text-xs text-gray-500">
+                      <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {(calculatePureAlcohol(item.drink.ml, item.drink.abv) * item.count).toFixed(1)}g
                       </Text>
                     </View>
                     <View className="flex-row items-center gap-2">
                       <TouchableOpacity
                         onPress={() => handleChangeCount(item.id, -1)}
-                        className="bg-gray-200 w-8 h-8 rounded-full items-center justify-center"
+                        className={`w-8 h-8 rounded-full items-center justify-center ${isDark ? 'bg-gray-600' : 'bg-gray-200'}`}
                       >
-                        <Text className="text-lg font-bold text-gray-700">−</Text>
+                        <Text className={`text-lg font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>−</Text>
                       </TouchableOpacity>
-                      <Text className="text-lg font-bold text-gray-900 w-6 text-center">
+                      <Text className={`text-lg font-bold w-6 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {item.count}
                       </Text>
                       <TouchableOpacity
@@ -536,17 +563,17 @@ export default function AddPersonalDrinkScreen() {
                 activeOpacity={0.7}
               >
                 <View className="flex-row items-center">
-                  <Text className="text-lg font-bold text-gray-900">
+                  <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     最近記録したドリンク
                   </Text>
-                  <View className="ml-2 bg-gray-200 px-2 py-0.5 rounded-full">
-                    <Text className="text-xs text-gray-600">{recentDrinks.length}</Text>
+                  <View className={`ml-2 px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{recentDrinks.length}</Text>
                   </View>
                 </View>
                 <Feather
                   name={collapsedSections.recentDrinks ? 'chevron-down' : 'chevron-up'}
                   size={20}
-                  color="#6b7280"
+                  color={isDark ? '#9ca3af' : '#6b7280'}
                 />
               </TouchableOpacity>
               {!collapsedSections.recentDrinks && (
@@ -597,17 +624,17 @@ export default function AddPersonalDrinkScreen() {
               activeOpacity={0.7}
             >
               <View className="flex-row items-center">
-                <Text className="text-lg font-bold text-gray-900">
+                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   よく使うドリンク
                 </Text>
-                <View className="ml-2 bg-gray-200 px-2 py-0.5 rounded-full">
-                  <Text className="text-xs text-gray-600">{popularDrinks.length}</Text>
+                <View className={`ml-2 px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                  <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{popularDrinks.length}</Text>
                 </View>
               </View>
               <Feather
                 name={collapsedSections.popularDrinks ? 'chevron-down' : 'chevron-up'}
                 size={20}
-                color="#6b7280"
+                color={isDark ? '#9ca3af' : '#6b7280'}
               />
             </TouchableOpacity>
             {!collapsedSections.popularDrinks && (
@@ -678,12 +705,12 @@ export default function AddPersonalDrinkScreen() {
           {/* 選んで記録 */}
           <Animated.View entering={FadeInDown.delay(recentDrinks.length > 0 ? 200 : 150).duration(400)} className="px-6 pt-6">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-bold text-gray-900">
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 選んで記録
               </Text>
               <TouchableOpacity
                 onPress={() => router.push('/(tabs)/drinks/add-custom-drink')}
-                className="bg-primary-50 px-3 py-1 rounded-lg"
+                className={`px-3 py-1 rounded-lg ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}
               >
                 <Text className="text-primary-600 font-semibold text-sm">
                   + カスタム追加
@@ -694,14 +721,14 @@ export default function AddPersonalDrinkScreen() {
             {/* 検索ボタン */}
             <TouchableOpacity
               onPress={() => setShowSearch(true)}
-              className="bg-white border-2 border-dashed border-gray-300 rounded-xl py-6 items-center"
+              className={`border-2 border-dashed rounded-xl py-6 items-center ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
               activeOpacity={0.7}
             >
-              <View className="w-14 h-14 bg-gray-100 rounded-full items-center justify-center mb-2">
-                <Feather name="search" size={28} color="#6b7280" />
+              <View className={`w-14 h-14 rounded-full items-center justify-center mb-2 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                <Feather name="search" size={28} color={isDark ? '#9ca3af' : '#6b7280'} />
               </View>
-              <Text className="text-gray-600 font-semibold">タップして飲み物を検索</Text>
-              <Text className="text-gray-400 text-sm mt-1">
+              <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>タップして飲み物を検索</Text>
+              <Text className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 カテゴリ別・商品名で探せます
               </Text>
             </TouchableOpacity>
@@ -835,6 +862,30 @@ export default function AddPersonalDrinkScreen() {
           {/* 下部余白（タブバー分） */}
           <View className="h-24" />
         </ScrollView>
+
+        {/* トップへ戻るフローティングボタン */}
+        {showScrollToTop && selectedDrinks.length > 0 && (
+          <Animated.View
+            entering={SlideInDown.duration(300)}
+            exiting={SlideOutDown.duration(300)}
+            className="absolute bottom-28 right-4"
+          >
+            <TouchableOpacity
+              onPress={scrollToTop}
+              activeOpacity={0.8}
+              className="bg-primary-500 w-11 h-11 rounded-full items-center justify-center"
+              style={{
+                shadowColor: '#0ea5e9',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+            >
+              <Feather name="arrow-up" size={18} color="#ffffff" />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

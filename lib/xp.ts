@@ -4,10 +4,11 @@ import { UserXP, PersonalDrinkLog } from '@/types';
  * XP付与値の定数
  */
 export const XP_VALUES = {
-  DRINK_LOG: 10, // 飲酒記録追加
+  DRINK_LOG: 10, // 飲酒記録追加（純アルコール量ベースの場合は未使用）
   EVENT_JOIN: 50, // イベント参加
   EVENT_COMPLETE: 30, // イベント完了
   DAILY_BONUS: 5, // 当日初回記録ボーナス
+  XP_PER_GRAM: 1, // 純アルコール1gあたりのXP
 } as const;
 
 /**
@@ -82,12 +83,14 @@ export function getXPToNextLevel(totalXP: number): number {
 }
 
 /**
- * 飲酒記録からXPを計算
- * @param log 飲酒記録
+ * 飲酒記録からXPを計算（純アルコール量ベース）
+ * @param pureAlcoholG 1杯あたりの純アルコール量（g）
+ * @param count 杯数
  * @param isFirstOfDay 当日初回かどうか
  */
-export function calculateLogXP(log: PersonalDrinkLog, isFirstOfDay: boolean): number {
-  let xp = XP_VALUES.DRINK_LOG;
+export function calculateLogXP(pureAlcoholG: number, count: number, isFirstOfDay: boolean): number {
+  // 純アルコール量に応じてXPを付与（1g = 1 XP）
+  let xp = Math.floor(pureAlcoholG * count * XP_VALUES.XP_PER_GRAM);
 
   if (isFirstOfDay) {
     xp += XP_VALUES.DAILY_BONUS;

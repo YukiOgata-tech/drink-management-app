@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
+import { ThemeProvider, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import 'react-native-reanimated';
 import '@/global.css';
 
 import { useUserStore } from '@/stores/user';
 import { useSyncStore } from '@/stores/sync';
+import { useThemeStore } from '@/stores/theme';
 import { handleAuthCallback } from '@/lib/auth';
 import {
   isFirstPermissionRequest,
@@ -22,8 +24,8 @@ export const unstable_settings = {
   initialRouteName: 'consent',
 };
 
-// カスタムテーマ（ライトモード固定）
-const AppTheme = {
+// ライトテーマ
+const LightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
@@ -35,12 +37,32 @@ const AppTheme = {
   },
 };
 
+// ダークテーマ
+const AppDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#111827',
+    card: '#1f2937',
+    text: '#f9fafb',
+    border: '#374151',
+    primary: '#0ea5e9',
+  },
+};
+
 export default function RootLayout() {
   const initializeAuth = useUserStore((state) => state.initializeAuth);
   const setUser = useUserStore((state) => state.setUser);
   const user = useUserStore((state) => state.user);
   const initializeSync = useSyncStore((state) => state.initialize);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const initializeTheme = useThemeStore((state) => state.initializeTheme);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+
+  // テーマの初期化
+  useEffect(() => {
+    initializeTheme();
+  }, []);
 
   useEffect(() => {
     initializeAuth();
@@ -138,23 +160,27 @@ export default function RootLayout() {
     }
   };
 
+  const isDark = colorScheme === 'dark';
+
   return (
-    <ThemeProvider value={AppTheme}>
+    <ThemeProvider value={isDark ? AppDarkTheme : LightTheme}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="consent" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="join-event" />
-          <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="account" />
-        </Stack>
-        <StatusBar style="dark" />
-        <NotificationPermissionModal
-          visible={showNotificationModal}
-          onAllow={handleAllowNotification}
-          onSkip={handleSkipNotification}
-        />
+        <View className={`flex-1 ${isDark ? 'dark' : ''}`}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="consent" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="join-event" />
+            <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="account" />
+          </Stack>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <NotificationPermissionModal
+            visible={showNotificationModal}
+            onAllow={handleAllowNotification}
+            onSkip={handleSkipNotification}
+          />
+        </View>
       </SafeAreaProvider>
     </ThemeProvider>
   );
