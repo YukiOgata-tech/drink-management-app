@@ -8,11 +8,12 @@ const EMPTY_MEMBERS: EventMember[] = [];
 interface EventsState {
   events: Event[];
   eventMembers: Map<string, EventMember[]>; // eventId -> members
+  totalCount: number; // 総イベント数
   loading: boolean;
   error: string | null;
 
   // イベント操作
-  fetchEvents: (userId: string) => Promise<void>;
+  fetchEvents: (userId: string, options?: { limit?: number; offset?: number; append?: boolean }) => Promise<void>;
   fetchEventById: (eventId: string) => Promise<Event | null>;
   fetchEventByInviteCode: (inviteCode: string) => Promise<Event | null>;
   createEvent: (params: {
@@ -45,6 +46,7 @@ interface EventsState {
 export const useEventsStore = create<EventsState>((set, get) => ({
   events: [],
   eventMembers: new Map(),
+  totalCount: 0,
   loading: false,
   error: null,
 
@@ -52,16 +54,29 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   // イベント操作
   // =====================================================
 
-  fetchEvents: async (userId: string) => {
+  fetchEvents: async (userId: string, options?: { limit?: number; offset?: number; append?: boolean }) => {
     set({ loading: true, error: null });
-    const { events, error } = await EventsAPI.getEvents(userId);
+    const { events, totalCount, error } = await EventsAPI.getEvents(userId, {
+      limit: options?.limit,
+      offset: options?.offset,
+    });
 
     if (error) {
       set({ loading: false, error: error.message });
       return;
     }
 
-    set({ events, loading: false });
+    if (options?.append) {
+      // 追加読み込み時は既存のイベントに追加
+      set((state) => ({
+        events: [...state.events, ...events],
+        totalCount,
+        loading: false,
+      }));
+    } else {
+      // 初回読み込み時は置き換え
+      set({ events, totalCount, loading: false });
+    }
   },
 
   fetchEventById: async (eventId: string) => {

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -11,27 +11,49 @@ import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+const INITIAL_LOAD_COUNT = 10;
+const LOAD_MORE_COUNT = 10;
+const SHOW_ALL_PAGE_THRESHOLD = 50;
+
 export default function EventsScreen() {
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
   const events = useEventsStore((state) => state.events);
+  const totalCount = useEventsStore((state) => state.totalCount);
   const fetchEvents = useEventsStore((state) => state.fetchEvents);
   const loading = useEventsStore((state) => state.loading);
 
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
     if (user && !isGuest) {
-      fetchEvents(user.id);
+      fetchEvents(user.id, { limit: INITIAL_LOAD_COUNT });
     }
   }, [user, isGuest]);
 
   const onRefresh = async () => {
     if (!user || isGuest) return;
     setRefreshing(true);
-    await fetchEvents(user.id);
+    await fetchEvents(user.id, { limit: INITIAL_LOAD_COUNT });
     setRefreshing(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleLoadMore = async () => {
+    if (!user || isGuest || isLoadingMore) return;
+    setIsLoadingMore(true);
+    await fetchEvents(user.id, {
+      limit: LOAD_MORE_COUNT,
+      offset: events.length,
+      append: true,
+    });
+    setIsLoadingMore(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleViewAll = () => {
+    router.push('/(tabs)/events/all');
   };
 
   if (!user) return null;
@@ -71,6 +93,9 @@ export default function EventsScreen() {
       </SafeAreaView>
     );
   }
+
+  const hasMoreEvents = events.length < totalCount;
+  const showViewAllButton = totalCount >= SHOW_ALL_PAGE_THRESHOLD;
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
@@ -127,15 +152,23 @@ export default function EventsScreen() {
             entering={FadeInDown.delay(200).duration(600)}
             className="mt-6"
           >
-            <Text className="text-lg font-bold text-gray-900 mb-3">
-              すべてのイベント
-            </Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-lg font-bold text-gray-900">
+                イベント一覧
+              </Text>
+              {totalCount > 0 && (
+                <Text className="text-sm text-gray-500">
+                  {events.length} / {totalCount}件
+                </Text>
+              )}
+            </View>
+
             {events.length > 0 ? (
               <View className="space-y-3">
                 {events.map((event, index) => (
                   <Animated.View
                     key={event.id}
-                    entering={FadeInDown.delay(250 + index * 30).duration(600)}
+                    entering={FadeInDown.delay(Math.min(250 + index * 30, 500)).duration(600)}
                   >
                     <EventCard
                       event={event}
@@ -144,6 +177,45 @@ export default function EventsScreen() {
                     />
                   </Animated.View>
                 ))}
+
+                {/* もっと読み込むボタン or すべて表示ボタン */}
+                {hasMoreEvents && (
+                  <View className="mt-4">
+                    {showViewAllButton ? (
+                      <TouchableOpacity
+                        onPress={handleViewAll}
+                        className="bg-white border border-gray-300 rounded-xl py-4 items-center"
+                      >
+                        <View className="flex-row items-center">
+                          <Feather name="list" size={18} color="#6b7280" style={{ marginRight: 8 }} />
+                          <Text className="text-gray-700 font-semibold">
+                            すべてのイベントを表示（{totalCount}件）
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={handleLoadMore}
+                        disabled={isLoadingMore}
+                        className={`bg-white border border-gray-300 rounded-xl py-4 items-center ${
+                          isLoadingMore ? 'opacity-50' : ''
+                        }`}
+                      >
+                        <View className="flex-row items-center">
+                          <Feather
+                            name={isLoadingMore ? 'loader' : 'chevron-down'}
+                            size={18}
+                            color="#6b7280"
+                            style={{ marginRight: 8 }}
+                          />
+                          <Text className="text-gray-700 font-semibold">
+                            {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
             ) : (
               <Card variant="outlined">

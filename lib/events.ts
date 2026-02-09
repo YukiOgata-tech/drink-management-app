@@ -60,11 +60,25 @@ export async function createEvent(params: {
 }
 
 /**
- * イベント一覧を取得
+ * イベント一覧を取得（ページネーション対応）
  */
-export async function getEvents(userId: string): Promise<{ events: Event[]; error: DatabaseError | null }> {
+export async function getEvents(
+  userId: string,
+  options?: { limit?: number; offset?: number }
+): Promise<{ events: Event[]; totalCount: number; error: DatabaseError | null }> {
   try {
-    const { data, error } = await supabase
+    // まず総件数を取得
+    const { count, error: countError } = await supabase
+      .from('events')
+      .select(`*, event_members!inner(user_id)`, { count: 'exact', head: true })
+      .eq('event_members.user_id', userId);
+
+    if (countError) {
+      return { events: [], totalCount: 0, error: { message: countError.message, code: countError.code } };
+    }
+
+    // イベントを取得
+    let query = supabase
       .from('events')
       .select(`
         *,
@@ -73,8 +87,18 @@ export async function getEvents(userId: string): Promise<{ events: Event[]; erro
       .eq('event_members.user_id', userId)
       .order('started_at', { ascending: false });
 
+    // ページネーション
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    if (options?.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
-      return { events: [], error: { message: error.message, code: error.code } };
+      return { events: [], totalCount: 0, error: { message: error.message, code: error.code } };
     }
 
     const events: Event[] = data.map((item) => ({
@@ -91,9 +115,9 @@ export async function getEvents(userId: string): Promise<{ events: Event[]; erro
       updatedAt: item.updated_at,
     }));
 
-    return { events, error: null };
+    return { events, totalCount: count || 0, error: null };
   } catch (err: any) {
-    return { events: [], error: { message: err.message || '予期しないエラーが発生しました' } };
+    return { events: [], totalCount: 0, error: { message: err.message || '予期しないエラーが発生しました' } };
   }
 }
 
