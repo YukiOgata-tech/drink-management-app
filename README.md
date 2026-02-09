@@ -1,6 +1,6 @@
-# Alcohol Log & Event Hub（仮）
+# 飲酒記録アプリ (Drink Management)
 
-飲み会（イベント）と日常の飲酒記録を統合管理するモバイルアプリ
+飲み会イベントと日常の飲酒記録を統合管理するモバイルアプリ
 
 ## 概要
 
@@ -8,125 +8,185 @@
 
 ## 技術スタック
 
-- **React Native (Expo)** - クロスプラットフォームモバイル開発
-- **TypeScript** - 型安全な開発
-- **NativeWind** - Tailwind CSS for React Native
-- **Zustand** - 状態管理
-- **React Native Reanimated** - アニメーション
-- **Expo Haptics** - 触覚フィードバック
-- **dayjs** - 日付処理
-- **Supabase** - バックエンド（今後接続予定）
+| カテゴリ | 技術 |
+|---------|------|
+| フレームワーク | React Native (Expo SDK 54) |
+| 言語 | TypeScript |
+| UIバージョン | React 19.1 / React Native 0.81 |
+| ルーティング | Expo Router v6 (ファイルベース) |
+| スタイリング | NativeWind v4 (Tailwind CSS) |
+| 状態管理 | Zustand v5 |
+| バックエンド | Supabase (認証・PostgreSQL) |
+| ローカルストレージ | AsyncStorage |
+| アニメーション | React Native Reanimated v4 |
+| 触覚フィードバック | Expo Haptics |
+| 日付処理 | dayjs (日本語ロケール) |
 
 ## 実装済み機能
 
-### ✅ 同意・警告画面
-- アプリ初回起動時の飲酒に関する警告表示
-- 利用規約・注意事項の確認
-- スクロール完了後に同意ボタンを有効化
+### 認証・アカウント
+- メール/パスワード認証（Supabase Auth）
+- ゲストモード（ローカルのみ）
+- ディープリンク対応（メール確認）
+- アカウント管理（表示名変更、1日1回制限）
+- アカウント削除申請（管理者承認フロー）
 
-### ✅ ホーム画面
+### ホーム画面
 - 今日の飲酒記録サマリ（杯数、純アルコール量）
 - 適正飲酒量との比較
 - クイックアクション（記録追加、イベント作成）
 - 直近のイベント一覧
 - 健康メッセージ
 
-### ✅ プロフィール管理画面
-- 基本情報の設定（年齢、身長、体重、自己紹介）
+### プロフィール管理
+- 基本情報の設定（誕生日、身長、体重、性別、自己紹介）
 - アバター表示
 - 適正飲酒量の目安表示（性別に応じて）
 - 統計情報の表示
 
-### ✅ 飲酒記録画面
-- ドリンクの追加（プリセットから選択）
-- カテゴリ別フィルタリング
-- 検索機能
-- 杯数の選択
-- 記録履歴の表示
+### 飲酒記録
+- デフォルトドリンクカタログ（27種類）
+- カスタムドリンク作成（ローカル保存）
+- カテゴリ別フィルタリング・検索
 - 純アルコール量の自動計算
+- 個人記録（イベント外）の管理
 
-### ✅ イベント管理画面
-- イベントの作成
-- 記録ルールの選択（Self / Host Only / Consensus）
-- イベント一覧表示
-- イベントステータス（開催中 / 終了）の表示
+### イベント管理
+- イベント作成・編集・削除
+- 3種類の記録ルール
+  - **Self（個人管理）**: 各参加者が自分の記録を自由に追加
+  - **Host Only（管理者記録）**: 管理者のみが記録追加可能
+  - **Consensus（同意制）**: 他の参加者の承認が必要
+- イベント招待（QRコード、LINE共有、招待コード）
+- ディープリンクでの参加（`drinkmanagement://events/join?code=ABC123`）
+- ページネーション（初期10件、追加読み込み、50件以上は別ページ）
 
-### ✅ 共通UIコンポーネント
+### UIコンポーネント
 - Button（アニメーション、触覚フィードバック付き）
 - Card（複数バリエーション）
 - Input（ラベル、エラー表示対応）
-
-### ✅ データ管理
-- Zustandストア（user, events, drinks）
-- デフォルトドリンクマスター（27種類）
-- ダミーデータ（開発用）
+- EventCard、DrinkLogCard、ParticipantRow など
 
 ## プロジェクト構造
 
 ```
 drink-management/
-├── app/                      # アプリ画面
-│   ├── (tabs)/              # タブナビゲーション
-│   │   ├── index.tsx        # ホーム画面
-│   │   ├── drinks.tsx       # 飲酒記録画面
-│   │   ├── events.tsx       # イベント画面
-│   │   └── profile.tsx      # プロフィール画面
-│   ├── consent.tsx          # 同意画面
-│   └── _layout.tsx          # ルートレイアウト
-├── components/              # UIコンポーネント
-│   └── ui/                  # 共通UIコンポーネント
-├── stores/                  # Zustandストア
-│   ├── user.ts
-│   ├── events.ts
-│   └── drinks.ts
-├── types/                   # TypeScript型定義
-│   └── index.ts
-├── data/                    # データファイル
-│   ├── default_drinks.json  # デフォルトドリンク
-│   └── dummy_data.ts        # ダミーデータ
-└── docs/                    # ドキュメント
-    └── drink-management-hub.md
+├── app/                        # 画面（Expo Router）
+│   ├── _layout.tsx             # ルートレイアウト
+│   ├── consent.tsx             # 同意画面
+│   ├── join-event.tsx          # イベント参加確認
+│   ├── (auth)/                 # 認証画面
+│   │   ├── login.tsx
+│   │   └── signup.tsx
+│   ├── (tabs)/                 # メインタブ
+│   │   ├── index.tsx           # ホーム
+│   │   ├── drinks.tsx          # 飲酒記録
+│   │   ├── events/             # イベント関連
+│   │   │   ├── index.tsx       # イベント一覧
+│   │   │   ├── all.tsx         # 全イベント一覧
+│   │   │   ├── create.tsx      # イベント作成
+│   │   │   └── [id]/           # イベント詳細
+│   │   └── profile.tsx         # プロフィール
+│   └── account/                # アカウント管理
+│       └── index.tsx
+├── components/                 # UIコンポーネント
+│   ├── ui/                     # 汎用UI
+│   └── event/                  # イベント専用
+├── stores/                     # Zustand状態管理
+│   ├── user.ts                 # ユーザー認証・プロフィール
+│   ├── events.ts               # イベント管理
+│   ├── drinks.ts               # 飲酒記録
+│   ├── products.ts             # 公式ドリンクDB
+│   ├── customDrinks.ts         # カスタムドリンク
+│   └── personalLogs.ts         # 個人記録
+├── lib/                        # ユーティリティ・API
+│   ├── supabase.ts             # Supabaseクライアント
+│   ├── auth.ts                 # 認証操作
+│   ├── database.ts             # プロフィールCRUD
+│   ├── events.ts               # イベントCRUD
+│   ├── drink-logs.ts           # 飲酒記録CRUD
+│   ├── account-deletion.ts     # アカウント削除申請
+│   └── storage/                # ローカルストレージ
+├── types/                      # TypeScript型定義
+├── data/                       # 静的データ
+│   └── default_drinks.json     # デフォルトドリンク（27種類）
+├── supabase/                   # データベース定義
+│   ├── schema.sql              # テーブル定義
+│   └── rls.sql                 # Row Level Security
+└── docs/                       # ドキュメント
 ```
 
 ## 開発の始め方
 
-### 1. 依存関係のインストール
+### 1. 環境設定
+
+```bash
+# .env.exampleを.envにコピー
+cp .env.example .env
+
+# 環境変数を設定
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### 2. 依存関係のインストール
 
 ```bash
 npm install
 ```
 
-### 2. アプリの起動
+### 3. Supabaseセットアップ
+
+```bash
+# Supabase Dashboardで以下を実行
+# 1. supabase/schema.sql - テーブル作成
+# 2. supabase/rls.sql - RLSポリシー設定
+```
+
+詳細は `docs/database-setup-guide.md` を参照
+
+### 4. アプリの起動
 
 ```bash
 # 開発サーバーの起動
-npx expo start -c
+npm start
 
-# iOS
+# iOS（開発ビルド）
+npm run ios
+# または
 npx expo run:ios
 
 # Android
-npx expo run:android
+npm run android
 
 # Web
 npm run web
 ```
 
+**注意**: ネイティブモジュールを使用しているため、Expo Goでは動作しません。開発ビルドを使用してください。
+
+### 5. ビルド・提出
+
+```bash
+# iOS本番ビルド
+eas build --platform ios --profile production
+
+# App Storeに提出
+eas submit --platform ios
+
+# ビルドと提出同時
+eas build --platform ios --profile production --auto-submit
+```
+
 ## 今後の実装予定
 
-### 近日中
-- [ ] イベント詳細画面（参加者一覧、記録管理）
-- [ ] メモ機能（酔い具合、翌日の状態）
-- [ ] 記録の編集・削除機能
-- [ ] Consensus（同意制）の実装
-
-### 中長期
-- [ ] Supabase連携（認証、データ永続化）
-- [ ] リアルタイム同期
-- [ ] QR招待・参加者管理
-- [ ] 統計・分析ダッシュボード
-- [ ] バーコードスキャン機能
+- [ ] リアルタイム更新（Supabase Realtime）
+- [ ] 画像/アバターアップロード
+- [ ] QRコード生成・スキャン
+- [ ] 高度なフィルタリング・ソート
+- [ ] オフラインモード同期
 - [ ] プッシュ通知
+- [ ] 統計・分析ダッシュボード
 
 ## デザイン方針
 
