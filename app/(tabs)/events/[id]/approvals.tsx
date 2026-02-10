@@ -10,10 +10,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Card } from '@/components/ui';
+import { Card, ResponsiveContainer } from '@/components/ui';
 import { ApprovalCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -23,6 +25,9 @@ export default function ApprovalsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useUserStore((state) => state.user);
   const event = useEventsStore((state) => state.getEventById(id));
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [approvals, setApprovals] = useState<
@@ -120,10 +125,10 @@ export default function ApprovalsScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <View className="flex-1">
         {/* ヘッダー */}
-        <View className="px-6 py-4 bg-white border-b border-gray-200">
+        <View className={`px-6 py-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <TouchableOpacity onPress={() => router.back()} className="mb-2 flex-row items-center">
             <Feather name="arrow-left" size={16} color="#0284c7" />
             <Text className="text-primary-600 font-semibold text-base ml-1">
@@ -131,9 +136,9 @@ export default function ApprovalsScreen() {
             </Text>
           </TouchableOpacity>
           <View className="flex-row items-center justify-between">
-            <Text className="text-2xl font-bold text-gray-900">承認待ち</Text>
-            <View className="bg-yellow-100 px-3 py-1 rounded-full">
-              <Text className="text-sm font-semibold text-yellow-700">
+            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>承認待ち</Text>
+            <View className={`px-3 py-1 rounded-full ${isDark ? 'bg-yellow-900/30' : 'bg-yellow-100'}`}>
+              <Text className={`text-sm font-semibold ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>
                 {drinkLogs.length}件
               </Text>
             </View>
@@ -141,12 +146,18 @@ export default function ApprovalsScreen() {
         </View>
 
         <ScrollView
-          className="flex-1 px-6 py-6"
-          contentContainerStyle={{ paddingBottom: 100 }}
+          className="flex-1"
+          contentContainerStyle={{
+            paddingBottom: 100,
+            paddingHorizontal: 24,
+            paddingVertical: 24,
+            alignItems: isMd ? 'center' : undefined,
+          }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
           {drinkLogs.length > 0 ? (
             <View className="space-y-3">
               {drinkLogs.map((log, index) => {
@@ -197,14 +208,14 @@ export default function ApprovalsScreen() {
               entering={FadeInDown.delay(200).duration(600)}
               className="mt-6"
             >
-              <Card variant="outlined" className="bg-blue-50 border-blue-200">
+              <Card variant="outlined" className={`border-blue-200 ${isDark ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
                 <View className="flex-row items-center mb-2">
-                  <Feather name="info" size={16} color="#1e3a8a" />
-                  <Text className="text-sm font-bold text-blue-900 ml-2">
+                  <Feather name="info" size={16} color={isDark ? '#60a5fa' : '#1e3a8a'} />
+                  <Text className={`text-sm font-bold ml-2 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
                     承認について
                   </Text>
                 </View>
-                <Text className="text-xs text-blue-800 leading-5">
+                <Text className={`text-xs leading-5 ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
                   • 各記録は{event.requiredApprovals}
                   人以上の承認で自動的に承認されます{'\n'}
                   • 自分の記録は承認できません{'\n'}• 承認後は取り消しできません
@@ -212,6 +223,7 @@ export default function ApprovalsScreen() {
               </Card>
             </Animated.View>
           )}
+          </ResponsiveContainer>
         </ScrollView>
       </View>
     </SafeAreaView>

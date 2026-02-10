@@ -3,8 +3,9 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { useConsentStore } from '@/stores/consent';
+import { useResponsive } from '@/lib/responsive';
 import { LEGAL_VERSIONS } from '@/types';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -35,6 +36,9 @@ export default function ConsentScreen() {
 
   // スクロール確認
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+
+  // レスポンシブ
+  const { isMd } = useResponsive();
 
   // ナビゲーションの準備完了を待つ
   useEffect(() => {
@@ -130,7 +134,8 @@ export default function ConsentScreen() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-gradient-to-b from-primary-50 to-white">
-      <Animated.View entering={FadeIn.duration(600)} className="flex-1 px-6 py-6">
+      <Animated.View entering={FadeIn.duration(600)} className={`flex-1 py-6 ${isMd ? 'items-center' : ''}`}>
+        <ResponsiveContainer maxWidth="form" className="flex-1 px-6">
         {/* ヘッダー */}
         <View className="items-center mb-6">
           <Text className="text-4xl mb-3">🍺</Text>
@@ -403,6 +408,7 @@ export default function ConsentScreen() {
             </Card>
           </Animated.View>
         )}
+        </ResponsiveContainer>
       </Animated.View>
     </SafeAreaView>
   );

@@ -14,11 +14,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { DrinkCategory, DefaultDrink } from '@/types';
 import { calculatePureAlcohol } from '@/lib/products';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useDrinksStore } from '@/stores/drinks';
 import { useSyncStore } from '@/stores/sync';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { addPendingEventDrinkLog } from '@/lib/storage/eventDrinkLogs';
 import { hasRecordedToday } from '@/lib/personal-logs-api';
@@ -50,6 +52,9 @@ export default function AddDrinkScreen() {
   const defaultDrinks = useDrinksStore((state) => state.defaultDrinks);
   const isOnline = useSyncStore((state) => state.isOnline);
   const refreshPendingCounts = useSyncStore((state) => state.refreshPendingCounts);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -257,7 +262,7 @@ export default function AddDrinkScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -267,19 +272,28 @@ export default function AddDrinkScreen() {
           <SyncStatusBanner />
 
           {/* ヘッダー */}
-          <View className="px-6 py-4 bg-white border-b border-gray-200 flex-row items-center justify-between">
+          <View className={`px-6 py-4 border-b flex-row items-center justify-between ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <TouchableOpacity onPress={() => router.back()}>
               <Text className="text-primary-600 font-semibold text-base">
                 キャンセル
               </Text>
             </TouchableOpacity>
-            <Text className="text-lg font-bold text-gray-900">
+            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               飲酒記録を追加
             </Text>
             <View style={{ width: 80 }} />
           </View>
 
-          <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 100 }}>
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{
+              paddingBottom: 100,
+              paddingHorizontal: 24,
+              paddingVertical: 24,
+              alignItems: isMd ? 'center' : undefined,
+            }}
+          >
+            <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
             {/* ユーザー選択（host_onlyモードの場合のみ） */}
             {canManage && (
               <Animated.View
@@ -474,25 +488,25 @@ export default function AddDrinkScreen() {
             {selectedDrink && (
               <Animated.View entering={FadeIn.duration(300)} className="mb-6">
                 <Card variant="elevated">
-                  <Text className="text-lg font-bold text-gray-900 mb-4">
+                  <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     詳細
                   </Text>
 
                   {/* 杯数 */}
                   <View className="mb-4">
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
+                    <Text className={`text-sm font-semibold mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       杯数
                     </Text>
                     <View className="flex-row items-center justify-center gap-4">
                       <TouchableOpacity
                         onPress={() => setCount(Math.max(1, count - 1))}
-                        className="bg-gray-200 w-12 h-12 rounded-full items-center justify-center"
+                        className={`w-12 h-12 rounded-full items-center justify-center ${isDark ? 'bg-gray-600' : 'bg-gray-200'}`}
                       >
-                        <Text className="text-xl font-bold text-gray-700">
+                        <Text className={`text-xl font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                           −
                         </Text>
                       </TouchableOpacity>
-                      <Text className="text-3xl font-bold text-gray-900 w-16 text-center">
+                      <Text className={`text-3xl font-bold w-16 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {count}
                       </Text>
                       <TouchableOpacity
@@ -502,7 +516,7 @@ export default function AddDrinkScreen() {
                         <Text className="text-xl font-bold text-white">＋</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text className="text-center text-sm text-gray-500 mt-2">
+                    <Text className={`text-center text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       純アルコール量:{' '}
                       {(selectedDrink.pureAlcoholG * count).toFixed(1)}g
                     </Text>
@@ -521,6 +535,7 @@ export default function AddDrinkScreen() {
                 </Card>
               </Animated.View>
             )}
+            </ResponsiveContainer>
           </ScrollView>
 
           {/* 追加ボタン */}

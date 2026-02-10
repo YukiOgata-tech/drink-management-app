@@ -145,11 +145,27 @@ export default function RootLayout() {
 
   const processAuthUrl = async (url: string) => {
     if (url.includes('auth/callback')) {
+      // URLからtypeパラメータを確認（パスワードリセットかどうか）
+      const urlObj = new URL(url);
+      let type = urlObj.searchParams.get('type');
+
+      // hash fragmentにtypeがある場合（Supabaseのデフォルト形式）
+      if (!type && urlObj.hash) {
+        const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+        type = hashParams.get('type');
+      }
+
       const { user, error } = await handleAuthCallback(url);
 
       if (user && !error) {
         setUser(user, false);
-        router.replace('/(tabs)/profile');
+
+        // パスワードリセットの場合は新しいパスワード設定画面へ
+        if (type === 'recovery') {
+          router.replace('/(auth)/reset-password');
+        } else {
+          router.replace('/(tabs)/profile');
+        }
       }
       return;
     }

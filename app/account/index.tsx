@@ -12,9 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
-import { resendConfirmationEmail } from '@/lib/auth';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
+import { resendConfirmationEmail, updateEmail, updatePassword } from '@/lib/auth';
 import { canChangeDisplayName } from '@/lib/database';
 import {
   DeletionRequest,
@@ -33,6 +35,9 @@ export default function AccountManagementScreen() {
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
   const updateDisplayName = useUserStore((state) => state.updateDisplayName);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
@@ -41,6 +46,17 @@ export default function AccountManagementScreen() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
+
+  // メールアドレス変更関連
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+
+  // パスワード変更関連
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   // 削除リクエスト関連
   const [deletionRequest, setDeletionRequest] = useState<DeletionRequest | null>(null);
@@ -150,6 +166,104 @@ export default function AccountManagementScreen() {
     );
   };
 
+  // メールアドレス変更
+  const handleStartEditEmail = () => {
+    setNewEmail('');
+    setIsEditingEmail(true);
+  };
+
+  const handleCancelEditEmail = () => {
+    setNewEmail('');
+    setIsEditingEmail(false);
+  };
+
+  const handleSaveEmail = async () => {
+    if (!newEmail.trim()) {
+      Alert.alert('エラー', '新しいメールアドレスを入力してください');
+      return;
+    }
+
+    // 簡単なメール形式チェック
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail.trim())) {
+      Alert.alert('エラー', '有効なメールアドレスを入力してください');
+      return;
+    }
+
+    if (newEmail.trim().toLowerCase() === user?.email?.toLowerCase()) {
+      Alert.alert('エラー', '現在のメールアドレスと同じです');
+      return;
+    }
+
+    setIsSavingEmail(true);
+    try {
+      const { error } = await updateEmail(newEmail.trim());
+
+      if (error) {
+        Alert.alert('エラー', error.message || 'メールアドレスの変更に失敗しました');
+        return;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsEditingEmail(false);
+      setNewEmail('');
+      Alert.alert(
+        '確認メールを送信しました',
+        '新しいメールアドレスに確認メールを送信しました。メール内のリンクをクリックして変更を完了してください。'
+      );
+    } finally {
+      setIsSavingEmail(false);
+    }
+  };
+
+  // パスワード変更
+  const handleStartEditPassword = () => {
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsEditingPassword(true);
+  };
+
+  const handleCancelEditPassword = () => {
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsEditingPassword(false);
+  };
+
+  const handleSavePassword = async () => {
+    if (!newPassword) {
+      Alert.alert('エラー', '新しいパスワードを入力してください');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert('エラー', 'パスワードは6文字以上で入力してください');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert('エラー', 'パスワードが一致しません');
+      return;
+    }
+
+    setIsSavingPassword(true);
+    try {
+      const { error } = await updatePassword(newPassword);
+
+      if (error) {
+        Alert.alert('エラー', error.message || 'パスワードの変更に失敗しました');
+        return;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsEditingPassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      Alert.alert('完了', 'パスワードを変更しました');
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
   const handleOpenDeleteModal = () => {
     setDeleteConfirmText('');
     setDeleteReason('');
@@ -251,9 +365,9 @@ export default function AccountManagementScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top', 'bottom']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* ヘッダー */}
-      <View className="px-4 py-3 border-b border-gray-200 bg-white flex-row items-center">
+      <View className={`px-4 py-3 border-b flex-row items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <TouchableOpacity
           onPress={() => router.back()}
           className="flex-row items-center py-2 pr-4"
@@ -261,13 +375,16 @@ export default function AccountManagementScreen() {
           <Feather name="chevron-left" size={24} color="#0ea5e9" />
           <Text className="text-primary-600 text-base ml-1">戻る</Text>
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900 flex-1 text-center mr-16">
+        <Text className={`text-lg font-bold flex-1 text-center mr-16 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           アカウント管理
         </Text>
       </View>
 
-      <ScrollView className="flex-1">
-        <View className="px-6 py-6">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
+      >
+        <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-2xl' : ''}`}>
           {/* 削除リクエスト中の警告バナー */}
           {deletionRequest && deletionRequest.status === 'pending' && (
             <Animated.View entering={FadeInDown.delay(0).duration(500)}>
@@ -444,18 +561,169 @@ export default function AccountManagementScreen() {
             </Card>
           </Animated.View>
 
-          {/* アカウントID */}
+          {/* メールアドレス変更 */}
           <Animated.View entering={FadeInDown.delay(150).duration(500)}>
             <Card variant="elevated" className="mb-6">
-              <Text className="text-lg font-bold text-gray-900 mb-4">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  メールアドレス変更
+                </Text>
+                {!isEditingEmail && (
+                  <TouchableOpacity
+                    onPress={handleStartEditEmail}
+                    className={`px-4 py-2 rounded-lg ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}
+                  >
+                    <Text className="text-primary-600 font-semibold">変更</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {isEditingEmail ? (
+                <View>
+                  <Text className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    現在: {user?.email}
+                  </Text>
+                  <TextInput
+                    value={newEmail}
+                    onChangeText={setNewEmail}
+                    placeholder="新しいメールアドレス"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    className={`border rounded-xl px-4 py-3 text-base mb-4 ${
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                    autoFocus
+                  />
+                  <View className={`border rounded-xl p-3 mb-4 ${isDark ? 'bg-amber-900/20 border-amber-700' : 'bg-amber-50 border-amber-200'}`}>
+                    <View className="flex-row items-start">
+                      <Feather name="info" size={16} color={isDark ? '#fbbf24' : '#b45309'} style={{ marginRight: 8, marginTop: 2 }} />
+                      <Text className={`text-sm flex-1 ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
+                        新しいメールアドレスに確認メールが送信されます。メール内のリンクをクリックすると変更が完了します。
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Button
+                        title="キャンセル"
+                        variant="outline"
+                        onPress={handleCancelEditEmail}
+                        fullWidth
+                        disabled={isSavingEmail}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Button
+                        title={isSavingEmail ? '送信中...' : '確認メール送信'}
+                        onPress={handleSaveEmail}
+                        fullWidth
+                        disabled={isSavingEmail}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View className="flex-row items-center">
+                  <Feather name="mail" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
+                  <Text className={`text-base ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                    {user?.email}
+                  </Text>
+                </View>
+              )}
+            </Card>
+          </Animated.View>
+
+          {/* パスワード変更 */}
+          <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+            <Card variant="elevated" className="mb-6">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  パスワード変更
+                </Text>
+                {!isEditingPassword && (
+                  <TouchableOpacity
+                    onPress={handleStartEditPassword}
+                    className={`px-4 py-2 rounded-lg ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}
+                  >
+                    <Text className="text-primary-600 font-semibold">変更</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {isEditingPassword ? (
+                <View>
+                  <TextInput
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder="新しいパスワード（6文字以上）"
+                    secureTextEntry
+                    className={`border rounded-xl px-4 py-3 text-base mb-3 ${
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                    autoFocus
+                  />
+                  <TextInput
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="新しいパスワード（確認）"
+                    secureTextEntry
+                    className={`border rounded-xl px-4 py-3 text-base mb-4 ${
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                  />
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Button
+                        title="キャンセル"
+                        variant="outline"
+                        onPress={handleCancelEditPassword}
+                        fullWidth
+                        disabled={isSavingPassword}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Button
+                        title={isSavingPassword ? '保存中...' : 'パスワードを変更'}
+                        onPress={handleSavePassword}
+                        fullWidth
+                        disabled={isSavingPassword}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View className="flex-row items-center">
+                  <Feather name="lock" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
+                  <Text className={`text-base ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                    ••••••••
+                  </Text>
+                </View>
+              )}
+            </Card>
+          </Animated.View>
+
+          {/* アカウントID */}
+          <Animated.View entering={FadeInDown.delay(250).duration(500)}>
+            <Card variant="elevated" className="mb-6">
+              <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 アカウント情報
               </Text>
 
               <View className="flex-row items-center">
-                <Feather name="hash" size={20} color="#6b7280" style={{ marginRight: 12 }} />
+                <Feather name="hash" size={20} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 12 }} />
                 <View className="flex-1">
-                  <Text className="text-sm text-gray-500">アカウントID</Text>
-                  <Text className="text-xs text-gray-400 font-mono">
+                  <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>アカウントID</Text>
+                  <Text className={`text-xs font-mono ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     {user?.id}
                   </Text>
                 </View>
@@ -492,7 +760,7 @@ export default function AccountManagementScreen() {
               </Card>
             </Animated.View>
           )}
-        </View>
+        </ResponsiveContainer>
       </ScrollView>
 
       {/* アカウント削除確認モーダル */}

@@ -14,10 +14,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { DrinkLogCard, ParticipantRow } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser } from '@/types';
 import { XP_VALUES } from '@/lib/xp';
@@ -50,6 +52,9 @@ export default function EventDetailScreen() {
     updateEvent,
     endEvent,
   } = useEventsStore();
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -182,9 +187,9 @@ export default function EventDetailScreen() {
 
   if (!user || !event) {
     return (
-      <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">読み込み中...</Text>
+          <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>読み込み中...</Text>
         </View>
       </SafeAreaView>
     );
@@ -201,10 +206,10 @@ export default function EventDetailScreen() {
   const pendingCount = drinkLogs.filter((log) => log.status === 'pending').length;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <View className="flex-1">
         {/* ヘッダー */}
-        <View className="px-6 py-4 bg-white border-b border-gray-200">
+        <View className={`px-6 py-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <View className="flex-row items-center justify-between mb-2">
             <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
               <Feather name="arrow-left" size={16} color="#0284c7" />
@@ -237,7 +242,7 @@ export default function EventDetailScreen() {
           <View className="flex-row items-start justify-between">
             <View className="flex-1">
               <View className="flex-row items-center">
-                <Text className="text-2xl font-bold text-gray-900 flex-1">
+                <Text className={`text-2xl font-bold flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {event.title}
                 </Text>
                 {isHost && isActive && (
@@ -252,26 +257,26 @@ export default function EventDetailScreen() {
                 )}
               </View>
               {event.description && (
-                <Text className="text-sm text-gray-500 mt-1">
+                <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {event.description}
                 </Text>
               )}
               {/* 開始日時と記録ルール */}
               <View className="flex-row flex-wrap items-center mt-2 gap-2">
-                <View className="flex-row items-center bg-gray-100 rounded-full px-3 py-1">
-                  <Feather name="calendar" size={12} color="#374151" style={{ marginRight: 4 }} />
-                  <Text className="text-xs text-gray-700">
+                <View className={`flex-row items-center rounded-full px-3 py-1 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Feather name="calendar" size={12} color={isDark ? '#9ca3af' : '#374151'} style={{ marginRight: 4 }} />
+                  <Text className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     {dayjs(event.startedAt).format('M/D (ddd) HH:mm')}
                   </Text>
                 </View>
-                <View className="flex-row items-center bg-gray-100 rounded-full px-3 py-1">
+                <View className={`flex-row items-center rounded-full px-3 py-1 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <Feather
                     name={event.recordingRule === 'self' ? 'edit-3' : event.recordingRule === 'host_only' ? 'shield' : 'users'}
                     size={12}
-                    color="#374151"
+                    color={isDark ? '#9ca3af' : '#374151'}
                     style={{ marginRight: 4 }}
                   />
-                  <Text className="text-xs text-gray-700">
+                  <Text className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     {event.recordingRule === 'self'
                       ? '各自入力'
                       : event.recordingRule === 'host_only'
@@ -298,12 +303,18 @@ export default function EventDetailScreen() {
         </View>
 
         <ScrollView
-          className="flex-1 px-6 py-6"
-          contentContainerStyle={{ paddingBottom: 100 }}
+          className="flex-1"
+          contentContainerStyle={{
+            paddingBottom: 100,
+            paddingHorizontal: 24,
+            paddingVertical: 24,
+            alignItems: isMd ? 'center' : undefined,
+          }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          <ResponsiveContainer className={isMd ? 'max-w-3xl w-full' : 'w-full'}>
           {/* クイックアクション */}
           {isActive && (
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
@@ -406,7 +417,7 @@ export default function EventDetailScreen() {
           {/* 最近の記録 */}
           <Animated.View entering={FadeInDown.delay(250).duration(600)}>
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-bold text-gray-900">
+              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 最近の記録
               </Text>
               <TouchableOpacity
@@ -436,14 +447,15 @@ export default function EventDetailScreen() {
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-8">
-                  <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
+                  <View className={`w-16 h-16 rounded-full items-center justify-center mb-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                     <Feather name="file-text" size={32} color="#9ca3af" />
                   </View>
-                  <Text className="text-gray-500">まだ記録がありません</Text>
+                  <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>まだ記録がありません</Text>
                 </View>
               </Card>
             )}
           </Animated.View>
+          </ResponsiveContainer>
         </ScrollView>
       </View>
 

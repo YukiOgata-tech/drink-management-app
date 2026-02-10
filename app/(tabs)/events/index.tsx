@@ -3,11 +3,12 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
 import { EventCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +26,7 @@ export default function EventsScreen() {
   const loading = useEventsStore((state) => state.loading);
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
+  const { isMd, isTablet } = useResponsive();
 
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -68,29 +70,35 @@ export default function EventsScreen() {
         <SyncStatusBanner />
         <View className="flex-1">
           <View className={`px-6 py-6 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <View className="flex-row items-center">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
-              <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
-            </View>
-            <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              飲み会イベントを作成・管理
-            </Text>
+            <ResponsiveContainer className={isMd ? 'max-w-4xl' : ''}>
+              <View className="flex-row items-center">
+                <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
+                <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
+              </View>
+              <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                飲み会イベントを作成・管理
+              </Text>
+            </ResponsiveContainer>
           </View>
           <View className="flex-1 items-center justify-center px-6">
-            <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-              <Feather name="lock" size={40} color={isDark ? '#9ca3af' : '#6b7280'} />
-            </View>
-            <Text className={`text-xl font-bold mb-2 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              ログインが必要です
-            </Text>
-            <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              イベント機能を利用するには{'\n'}アカウントでログインしてください
-            </Text>
-            <Button
-              title="ログインする"
-              onPress={() => router.push('/(auth)/login')}
-              variant="primary"
-            />
+            <ResponsiveContainer maxWidth="form">
+              <View className="items-center">
+                <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Feather name="lock" size={40} color={isDark ? '#9ca3af' : '#6b7280'} />
+                </View>
+                <Text className={`text-xl font-bold mb-2 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  ログインが必要です
+                </Text>
+                <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  イベント機能を利用するには{'\n'}アカウントでログインしてください
+                </Text>
+                <Button
+                  title="ログインする"
+                  onPress={() => router.push('/(auth)/login')}
+                  variant="primary"
+                />
+              </View>
+            </ResponsiveContainer>
           </View>
         </View>
       </SafeAreaView>
@@ -108,22 +116,25 @@ export default function EventsScreen() {
       <View className="flex-1">
         {/* ヘッダー */}
         <View className={`px-6 py-6 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <View className="flex-row items-center">
-            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
-            <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
-          </View>
-          <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            飲み会イベントを作成・管理
-          </Text>
+          <ResponsiveContainer className={isMd ? 'max-w-4xl' : ''}>
+            <View className="flex-row items-center">
+              <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
+              <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
+            </View>
+            <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              飲み会イベントを作成・管理
+            </Text>
+          </ResponsiveContainer>
         </View>
 
         <ScrollView
-          className="flex-1 px-6 py-6"
-          contentContainerStyle={{ paddingBottom: 100 }}
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 100, alignItems: isMd ? 'center' : undefined }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-4xl' : ''}`}>
           {/* アクションボタン */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <View className="flex-row gap-3">
@@ -167,7 +178,8 @@ export default function EventsScreen() {
             </View>
 
             {events.length > 0 ? (
-              <View className="space-y-3">
+              <>
+              <ResponsiveGrid minItemWidth={340} gap={12}>
                 {events.map((event, index) => (
                   <Animated.View
                     key={event.id}
@@ -180,46 +192,47 @@ export default function EventsScreen() {
                     />
                   </Animated.View>
                 ))}
+              </ResponsiveGrid>
 
-                {/* もっと読み込むボタン or すべて表示ボタン */}
-                {hasMoreEvents && (
-                  <View className="mt-4">
-                    {showViewAllButton ? (
-                      <TouchableOpacity
-                        onPress={handleViewAll}
-                        className={`border rounded-xl py-4 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
-                      >
-                        <View className="flex-row items-center">
-                          <Feather name="list" size={18} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 8 }} />
-                          <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                            すべてのイベントを表示（{totalCount}件）
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={handleLoadMore}
-                        disabled={isLoadingMore}
-                        className={`border rounded-xl py-4 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'} ${
-                          isLoadingMore ? 'opacity-50' : ''
-                        }`}
-                      >
-                        <View className="flex-row items-center">
-                          <Feather
-                            name={isLoadingMore ? 'loader' : 'chevron-down'}
-                            size={18}
-                            color={isDark ? '#9ca3af' : '#6b7280'}
-                            style={{ marginRight: 8 }}
-                          />
-                          <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                            {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
+              {/* もっと読み込むボタン or すべて表示ボタン */}
+              {hasMoreEvents && (
+                <View className="mt-4">
+                  {showViewAllButton ? (
+                    <TouchableOpacity
+                      onPress={handleViewAll}
+                      className={`border rounded-xl py-4 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+                    >
+                      <View className="flex-row items-center">
+                        <Feather name="list" size={18} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 8 }} />
+                        <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          すべてのイベントを表示（{totalCount}件）
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className={`border rounded-xl py-4 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'} ${
+                        isLoadingMore ? 'opacity-50' : ''
+                      }`}
+                    >
+                      <View className="flex-row items-center">
+                        <Feather
+                          name={isLoadingMore ? 'loader' : 'chevron-down'}
+                          size={18}
+                          color={isDark ? '#9ca3af' : '#6b7280'}
+                          style={{ marginRight: 8 }}
+                        />
+                        <Text className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </>
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-12">
@@ -239,6 +252,7 @@ export default function EventsScreen() {
               </Card>
             )}
           </Animated.View>
+          </ResponsiveContainer>
         </ScrollView>
       </View>
     </SafeAreaView>

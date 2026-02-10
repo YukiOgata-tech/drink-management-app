@@ -17,13 +17,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useProductsStore } from '@/stores/products';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDrinksStore } from '@/stores/drinks';
 import { useUserStore } from '@/stores/user';
 import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { DrinkCategory, Product, CustomDrink, DefaultDrink } from '@/types';
 import { calculatePureAlcohol } from '@/lib/products';
 import {
@@ -131,6 +132,7 @@ export default function AddPersonalDrinkScreen() {
 
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
+  const { isMd, isTablet } = useResponsive();
 
   // 複数選択対応
   const [selectedDrinks, setSelectedDrinks] = useState<SelectedDrinkItem[]>([]);
@@ -469,7 +471,9 @@ export default function AddPersonalDrinkScreen() {
           keyboardShouldPersistTaps="handled"
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
         >
+          <ResponsiveContainer className={isMd ? 'max-w-4xl w-full' : 'w-full'}>
           {/* 選択中のドリンク一覧 */}
           {selectedDrinks.length > 0 && (
             <Animated.View entering={FadeIn.duration(300)} className="px-6 pt-4">
@@ -861,6 +865,7 @@ export default function AddPersonalDrinkScreen() {
 
           {/* 下部余白（タブバー分） */}
           <View className="h-24" />
+          </ResponsiveContainer>
         </ScrollView>
 
         {/* トップへ戻るフローティングボタン */}

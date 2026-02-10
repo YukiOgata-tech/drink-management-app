@@ -2,27 +2,41 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Card } from '@/components/ui';
+import { Card, ResponsiveContainer } from '@/components/ui';
 import { LEGAL_VERSIONS } from '@/types';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 
 export default function DrinkingGuideScreen() {
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
+
   const handleOpenLink = (url: string) => {
     Linking.openURL(url);
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-white">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       {/* ヘッダー */}
-      <View className="px-6 py-4 border-b border-gray-200 flex-row items-center">
+      <View className={`px-6 py-4 border-b flex-row items-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
         <TouchableOpacity onPress={() => router.back()} className="mr-4">
           <Text className="text-primary-600 text-base">戻る</Text>
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900 flex-1">
+        <Text className={`text-lg font-bold flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           飲酒ガイドライン
         </Text>
       </View>
 
-      <ScrollView className="flex-1 px-6 py-6">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingVertical: 24,
+          alignItems: isMd ? 'center' : undefined,
+        }}
+      >
+        <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
         <View className="space-y-6 pb-8">
           {/* バージョン情報 */}
           <View className="bg-gray-100 rounded-lg p-3">
@@ -302,12 +316,13 @@ export default function DrinkingGuideScreen() {
           </View>
 
           {/* 免責事項 */}
-          <View className="bg-gray-100 rounded-lg p-4">
-            <Text className="text-sm text-gray-600 leading-6">
+          <View className={`rounded-lg p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+            <Text className={`text-sm leading-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               <Text className="font-bold">免責事項：</Text>本ガイドラインは一般的な情報提供を目的としており、医療上のアドバイスではありません。個人の健康状態に関する判断は、必ず医師等の専門家にご相談ください。
             </Text>
           </View>
         </View>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   );

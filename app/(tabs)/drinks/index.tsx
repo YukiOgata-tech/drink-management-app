@@ -12,13 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
 import { useDevStore } from '@/stores/dev';
 import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { PersonalDrinkLog } from '@/types';
 import { XP_VALUES } from '@/lib/xp';
 import Animated, { FadeInDown, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -52,6 +53,7 @@ export default function DrinksScreen() {
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
+  const { isMd, isTablet } = useResponsive();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -193,22 +195,24 @@ export default function DrinksScreen() {
 
         <ScrollView
           ref={scrollViewRef}
-          className="flex-1 px-6 py-6"
+          className="flex-1"
+          contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {/* 記録追加ボタン */}
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/drinks/add-personal');
-            }}
-            activeOpacity={0.8}
-            className="bg-primary-500 rounded-xl py-4 flex-row items-center justify-center"
-          >
-            <Feather name="plus-circle" size={22} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text className="text-white font-semibold text-lg">個人記録を追加</Text>
-          </TouchableOpacity>
+          <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-4xl' : ''}`}>
+            {/* 記録追加ボタン */}
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/drinks/add-personal');
+              }}
+              activeOpacity={0.8}
+              className={`bg-primary-500 rounded-xl py-4 flex-row items-center justify-center ${isMd ? 'max-w-md self-center w-full' : ''}`}
+            >
+              <Feather name="plus-circle" size={22} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text className="text-white font-semibold text-lg">個人記録を追加</Text>
+            </TouchableOpacity>
 
           {/* 履歴 */}
           <Animated.View entering={FadeInDown.delay(200).duration(600)} className="mt-6">
@@ -223,7 +227,7 @@ export default function DrinksScreen() {
               )}
             </View>
             {recentPersonalLogs.length > 0 ? (
-              <View className="space-y-3">
+              <ResponsiveGrid minItemWidth={320} gap={12}>
                 {recentPersonalLogs.map((log, index) => {
                   const getCategoryEmoji = (category: string) => {
                     const emojiMap: Record<string, string> = {
@@ -331,7 +335,7 @@ export default function DrinksScreen() {
                     </Animated.View>
                   );
                 })}
-              </View>
+              </ResponsiveGrid>
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-12">
@@ -351,6 +355,7 @@ export default function DrinksScreen() {
               </Card>
             )}
           </Animated.View>
+          </ResponsiveContainer>
         </ScrollView>
 
         {/* トップへ戻るフローティングボタン */}

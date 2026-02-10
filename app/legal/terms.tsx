@@ -3,21 +3,36 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LEGAL_VERSIONS } from '@/types';
+import { ResponsiveContainer } from '@/components/ui';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 
 export default function TermsScreen() {
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
+
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-white">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       {/* ヘッダー */}
-      <View className="px-6 py-4 border-b border-gray-200 flex-row items-center">
+      <View className={`px-6 py-4 border-b flex-row items-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
         <TouchableOpacity onPress={() => router.back()} className="mr-4">
           <Text className="text-primary-600 text-base">戻る</Text>
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900 flex-1">
+        <Text className={`text-lg font-bold flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           利用規約
         </Text>
       </View>
 
-      <ScrollView className="flex-1 px-6 py-6">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingVertical: 24,
+          alignItems: isMd ? 'center' : undefined,
+        }}
+      >
+        <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
         <View className="space-y-6 pb-8">
           {/* バージョン情報 */}
           <View className="bg-gray-100 rounded-lg p-3">
@@ -293,12 +308,13 @@ export default function TermsScreen() {
           </View>
 
           {/* 施行日 */}
-          <View className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <Text className="text-sm text-blue-800">
+          <View className={`border rounded-lg p-4 ${isDark ? 'bg-blue-900/30 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+            <Text className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
               本規約は2025年2月1日より施行します。
             </Text>
           </View>
         </View>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   );

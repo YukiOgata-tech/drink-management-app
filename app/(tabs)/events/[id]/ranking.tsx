@@ -6,14 +6,15 @@ import {
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Card } from '@/components/ui';
+import { Card, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useResponsive } from '@/lib/responsive';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser, EventMember } from '@/types';
 import Animated, {
@@ -24,8 +25,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-
-const { width } = Dimensions.get('window');
 
 type RankingCategory = 'drinks' | 'alcohol' | 'variety' | 'frequency';
 
@@ -51,6 +50,8 @@ export default function RankingScreen() {
   const event = useEventsStore((state) => state.getEventById(id));
   const members = useEventsStore((state) => state.getEventMembers(id));
   const fetchEventMembers = useEventsStore((state) => state.fetchEventMembers);
+  const { isMd } = useResponsive();
+  const { width } = useWindowDimensions();
 
   const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<RankingCategory>('drinks');
@@ -235,11 +236,15 @@ export default function RankingScreen() {
 
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isMd && { alignItems: 'center' },
+          ]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          <ResponsiveContainer className={isMd ? 'max-w-3xl w-full' : 'w-full'}>
           {/* カテゴリ選択 */}
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
             <ScrollView
@@ -396,6 +401,7 @@ export default function RankingScreen() {
                   unit="杯"
                   label="総杯数"
                   color="#0ea5e9"
+                  containerWidth={isMd ? Math.min(width, 800) - 48 : width - 48}
                 />
                 <StatCard
                   icon="droplet"
@@ -403,6 +409,7 @@ export default function RankingScreen() {
                   unit="g"
                   label="総アルコール"
                   color="#8b5cf6"
+                  containerWidth={isMd ? Math.min(width, 800) - 48 : width - 48}
                 />
                 <StatCard
                   icon="grid"
@@ -410,6 +417,7 @@ export default function RankingScreen() {
                   unit="種類"
                   label="ドリンク種類"
                   color="#f59e0b"
+                  containerWidth={isMd ? Math.min(width, 800) - 48 : width - 48}
                 />
                 <StatCard
                   icon="bar-chart-2"
@@ -417,10 +425,12 @@ export default function RankingScreen() {
                   unit="杯"
                   label="平均/人"
                   color="#10b981"
+                  containerWidth={isMd ? Math.min(width, 800) - 48 : width - 48}
                 />
               </View>
             </Animated.View>
           )}
+          </ResponsiveContainer>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -540,15 +550,17 @@ function StatCard({
   unit,
   label,
   color,
+  containerWidth,
 }: {
   icon: keyof typeof Feather.glyphMap;
   value: number;
   unit: string;
   label: string;
   color: string;
+  containerWidth: number;
 }) {
   return (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
+    <View style={[styles.statCard, { borderLeftColor: color, width: (containerWidth) / 2 }]}>
       <Feather name={icon} size={24} color={color} style={{ marginBottom: 8 }} />
       <Text style={styles.statValue}>
         {value}
@@ -842,7 +854,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statCard: {
-    width: (width - 48) / 2,
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,

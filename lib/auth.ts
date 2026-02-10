@@ -191,10 +191,17 @@ export async function resetPassword(email: string): Promise<{ error: AuthError |
  */
 export async function handleAuthCallback(url: string): Promise<AuthResponse> {
   try {
-    // URLからトークンを抽出
+    // URLからトークンを抽出（query paramsとhash fragmentの両方をチェック）
     const urlObj = new URL(url);
-    const accessToken = urlObj.searchParams.get('access_token');
-    const refreshToken = urlObj.searchParams.get('refresh_token');
+    let accessToken = urlObj.searchParams.get('access_token');
+    let refreshToken = urlObj.searchParams.get('refresh_token');
+
+    // hash fragmentにトークンがある場合（Supabaseのデフォルト形式）
+    if (!accessToken && urlObj.hash) {
+      const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+      accessToken = hashParams.get('access_token');
+      refreshToken = hashParams.get('refresh_token');
+    }
 
     if (!accessToken || !refreshToken) {
       return { user: null, error: { message: '認証トークンが見つかりません' } };
@@ -257,6 +264,47 @@ export async function resendConfirmationEmail(email: string): Promise<{ error: A
       options: {
         emailRedirectTo: 'drinkmanagement://auth/callback',
       },
+    });
+
+    if (error) {
+      return { error: { message: error.message, code: error.code } };
+    }
+
+    return { error: null };
+  } catch (err: any) {
+    return { error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
+}
+
+/**
+ * メールアドレスを変更
+ * 新しいメールアドレスに確認メールが送信されます
+ */
+export async function updateEmail(newEmail: string): Promise<{ error: AuthError | null }> {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      email: newEmail,
+    }, {
+      emailRedirectTo: 'drinkmanagement://auth/callback',
+    });
+
+    if (error) {
+      return { error: { message: error.message, code: error.code } };
+    }
+
+    return { error: null };
+  } catch (err: any) {
+    return { error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
+}
+
+/**
+ * パスワードを変更
+ */
+export async function updatePassword(newPassword: string): Promise<{ error: AuthError | null }> {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
     });
 
     if (error) {

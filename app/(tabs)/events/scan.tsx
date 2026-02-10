@@ -4,13 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
+import { useResponsive } from '@/lib/responsive';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const { isMd } = useResponsive();
 
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     if (scanned) return;
@@ -56,7 +58,8 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
-        <View style={styles.centerContent}>
+        <View style={[styles.centerContent, isMd && { alignItems: 'center' }]}>
+          <ResponsiveContainer className={isMd ? 'max-w-md w-full' : 'w-full'}>
           <Animated.View entering={FadeIn.duration(300)}>
             <Card variant="elevated" style={styles.permissionCard}>
               <View style={styles.permissionIcon}>
@@ -83,6 +86,7 @@ export default function ScanScreen() {
               </View>
             </Card>
           </Animated.View>
+          </ResponsiveContainer>
         </View>
       </SafeAreaView>
     );

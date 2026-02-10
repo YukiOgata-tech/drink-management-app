@@ -13,6 +13,8 @@ import { Feather } from '@expo/vector-icons';
 import { EventCard } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import * as Haptics from 'expo-haptics';
 import { Event } from '@/types';
@@ -26,6 +28,9 @@ export default function AllEventsScreen() {
   const totalCount = useEventsStore((state) => state.totalCount);
   const fetchEvents = useEventsStore((state) => state.fetchEvents);
   const loading = useEventsStore((state) => state.loading);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd, numColumns } = useResponsive();
 
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -63,8 +68,16 @@ export default function AllEventsScreen() {
   };
 
   const renderItem = useCallback(
-    ({ item }: { item: Event }) => (
-      <View className="mb-3">
+    ({ item, index }: { item: Event; index: number }) => (
+      <View
+        className="mb-3"
+        style={isMd ? {
+          flex: 1,
+          maxWidth: `${100 / numColumns}%`,
+          paddingLeft: index % numColumns !== 0 ? 6 : 0,
+          paddingRight: index % numColumns !== numColumns - 1 ? 6 : 0,
+        } : undefined}
+      >
         <EventCard
           event={item}
           isHost={item.hostId === user?.id}
@@ -72,7 +85,7 @@ export default function AllEventsScreen() {
         />
       </View>
     ),
-    [user?.id]
+    [user?.id, isMd, numColumns]
   );
 
   const renderFooter = useCallback(() => {
@@ -107,21 +120,21 @@ export default function AllEventsScreen() {
   if (!user) return null;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <SyncStatusBanner />
 
       {/* カスタムヘッダー */}
-      <View className="px-4 py-3 bg-white border-b border-gray-200 flex-row items-center">
+      <View className={`px-4 py-3 border-b flex-row items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <TouchableOpacity
           onPress={handleBack}
           className="w-10 h-10 items-center justify-center -ml-2"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="chevron-left" size={28} color="#374151" />
+          <Feather name="chevron-left" size={28} color={isDark ? '#9ca3af' : '#374151'} />
         </TouchableOpacity>
         <View className="flex-1 ml-2">
-          <Text className="text-xl font-bold text-gray-900">すべてのイベント</Text>
-          <Text className="text-sm text-gray-500">
+          <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>すべてのイベント</Text>
+          <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {totalCount}件のイベント
           </Text>
         </View>
@@ -131,7 +144,15 @@ export default function AllEventsScreen() {
         data={events}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        numColumns={isMd ? numColumns : 1}
+        key={isMd ? `grid-${numColumns}` : 'list'}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 100,
+          maxWidth: isMd ? 1200 : undefined,
+          alignSelf: isMd ? 'center' : undefined,
+          width: isMd ? '100%' : undefined,
+        }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

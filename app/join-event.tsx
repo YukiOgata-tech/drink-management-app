@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
@@ -21,6 +23,9 @@ export default function JoinEventScreen() {
     addEventMember,
     getEventById,
   } = useEventsStore();
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -84,10 +89,10 @@ export default function JoinEventScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#0ea5e9" />
-          <Text className="text-gray-500 mt-4">イベントを読み込み中...</Text>
+          <Text className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>イベントを読み込み中...</Text>
         </View>
       </SafeAreaView>
     );
@@ -114,19 +119,28 @@ export default function JoinEventScreen() {
   const ruleInfo = recordingRuleConfig[event.recordingRule];
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
-      <View className="flex-1 px-6 py-8">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingVertical: 32,
+          alignItems: isMd ? 'center' : undefined,
+        }}
+      >
+        <ResponsiveContainer className={isMd ? 'max-w-md w-full' : 'w-full'}>
         <View className="flex-1 justify-center">
           {/* イベント情報 */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
             <View className="items-center mb-8">
-              <View className="w-20 h-20 bg-secondary-100 rounded-full items-center justify-center mb-4">
+              <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-secondary-900/30' : 'bg-secondary-100'}`}>
                 <Feather name="calendar" size={40} color="#f97316" />
               </View>
-              <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
+              <Text className={`text-2xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 イベントへの招待
               </Text>
-              <Text className="text-sm text-gray-500 text-center">
+              <Text className={`text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 以下のイベントに参加しますか？
               </Text>
             </View>
@@ -135,15 +149,15 @@ export default function JoinEventScreen() {
           <Animated.View entering={FadeInDown.delay(200).duration(600)}>
             <Card variant="elevated" className="mb-8">
               <View className="items-center py-4">
-                <Text className="text-xl font-bold text-gray-900 mb-4">
+                <Text className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {event.title}
                 </Text>
                 {event.description && (
-                  <Text className="text-sm text-gray-600 text-center mb-4">
+                  <Text className={`text-sm text-center mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {event.description}
                   </Text>
                 )}
-                <View className="w-full bg-gray-50 rounded-xl p-4 space-y-3">
+                <View className={`w-full rounded-xl p-4 space-y-3 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <InfoRow
                     icon="clock"
                     label="開始日時"
@@ -191,13 +205,14 @@ export default function JoinEventScreen() {
           entering={FadeInDown.delay(400).duration(600)}
           className="mt-6"
         >
-          <Card variant="outlined" className="bg-blue-50 border-blue-200">
-            <Text className="text-xs text-blue-800 text-center leading-5">
+          <Card variant="outlined" className={`border-blue-200 ${isDark ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+            <Text className={`text-xs text-center leading-5 ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
               参加後、イベント内の飲酒記録を閲覧できます。記録ルールに従って、記録の追加や承認ができます。
             </Text>
           </Card>
         </Animated.View>
-      </View>
+        </ResponsiveContainer>
+      </ScrollView>
     </SafeAreaView>
   );
 }

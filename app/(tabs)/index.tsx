@@ -8,12 +8,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
 import { useEventsStore } from '@/stores/events';
+import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useDevStore } from '@/stores/dev';
 import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import dayjs from 'dayjs';
@@ -25,20 +27,24 @@ export default function HomeScreen() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
-  const todayLogs = useDrinksStore((state) => state.todayLogs);
-  const fetchTodayLogs = useDrinksStore((state) => state.fetchTodayLogs);
-  const getTodayDrinkLogs = useDrinksStore((state) => state.getTodayDrinkLogs);
   const events = useEventsStore((state) => state.events);
   const fetchEvents = useEventsStore((state) => state.fetchEvents);
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
+  const { isTablet, isMd } = useResponsive();
+
+  // 個人記録ストア
+  const personalLogs = usePersonalLogsStore((state) => state.logs);
+  const loadPersonalLogs = usePersonalLogsStore((state) => state.loadLogs);
 
   // 画面がフォーカスされるたびにデータを再取得
   useFocusEffect(
     useCallback(() => {
+      // 個人記録を読み込み（ゲスト・認証ユーザー共通）
+      loadPersonalLogs();
+
       if (user && !isGuest) {
-        fetchTodayLogs(user.id);
         fetchEvents();
       }
     }, [user, isGuest])
@@ -46,10 +52,19 @@ export default function HomeScreen() {
 
   if (!user) return null;
 
-  // Supabaseから取得したデータを使用（ゲストの場合はローカルデータ）
-  const displayLogs = isGuest ? getTodayDrinkLogs(user.id) : todayLogs;
-  const totalPureAlcohol = displayLogs.reduce(
+  // 今日の個人記録をフィルタリング（削除済みを除外）
+  const today = dayjs().format('YYYY-MM-DD');
+  const todayPersonalLogs = personalLogs.filter(
+    (log) => dayjs(log.recordedAt).format('YYYY-MM-DD') === today && !log.deletedAt
+  );
+
+  // 今日の合計純アルコール量と杯数
+  const totalPureAlcohol = todayPersonalLogs.reduce(
     (sum, log) => sum + log.pureAlcoholG * log.count,
+    0
+  );
+  const totalCount = todayPersonalLogs.reduce(
+    (sum, log) => sum + log.count,
     0
   );
 
@@ -65,15 +80,15 @@ export default function HomeScreen() {
 
       <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 100, alignItems: isMd ? 'center' : undefined }}
         >
-        <View className="px-6 py-8">
+        <ResponsiveContainer className={`px-6 py-8 ${isMd ? 'max-w-4xl' : ''}`}>
           {/* ヘッダー */}
           <View className="mb-8">
-            <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <Text className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isMd ? 'text-4xl' : 'text-3xl'}`}>
               おかえりなさい、{user.displayName.split(' ')[0]}さん
             </Text>
-            <Text className={`text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <Text className={`mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'} ${isMd ? 'text-base' : 'text-sm'}`}>
               {dayjs().format('YYYY年M月D日 (ddd)')}
             </Text>
           </View>
@@ -92,7 +107,7 @@ export default function HomeScreen() {
               <View className="flex-row justify-around">
                 <View className={`items-center rounded-xl px-6 py-4 ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}>
                   <Text className="text-4xl font-bold text-primary-600">
-                    {displayLogs.reduce((sum, log) => sum + log.count, 0)}
+                    {totalCount}
                   </Text>
                   <Text className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>杯</Text>
                 </View>
@@ -175,7 +190,7 @@ export default function HomeScreen() {
             </View>
 
             {recentEvents.length > 0 ? (
-              <View className="space-y-3">
+              <ResponsiveGrid minItemWidth={280} gap={12}>
                 {recentEvents.map((event, index) => (
                   <Animated.View
                     key={event.id}
@@ -220,7 +235,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </Animated.View>
                 ))}
-              </View>
+              </ResponsiveGrid>
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-8">
@@ -262,7 +277,7 @@ export default function HomeScreen() {
               </View>
             </Card>
           </Animated.View>
-        </View>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   );

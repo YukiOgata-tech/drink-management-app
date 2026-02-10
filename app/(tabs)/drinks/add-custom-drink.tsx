@@ -9,8 +9,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, ResponsiveContainer } from '@/components/ui';
 import { useCustomDrinksStore } from '@/stores/customDrinks';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { DrinkCategory } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +30,9 @@ const CATEGORY_OPTIONS: { value: DrinkCategory; label: string; emoji: string }[]
 
 export default function AddCustomDrinkScreen() {
   const addDrink = useCustomDrinksStore((state) => state.addDrink);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [category, setCategory] = useState<DrinkCategory>('beer');
   const [name, setName] = useState('');
@@ -83,22 +88,26 @@ export default function AddCustomDrinkScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <View className="flex-1">
         {/* ヘッダー */}
-        <View className="px-6 py-4 bg-white border-b border-gray-200">
+        <View className={`px-6 py-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <TouchableOpacity onPress={() => router.back()} className="mb-2 flex-row items-center">
             <Feather name="arrow-left" size={16} color="#0284c7" />
             <Text className="text-primary-600 font-semibold text-base ml-1">
               戻る
             </Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-bold text-gray-900">
+          <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             カスタムドリンク追加
           </Text>
         </View>
 
-        <ScrollView className="flex-1 px-6 py-6">
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ alignItems: isMd ? 'center' : undefined, paddingHorizontal: 24, paddingVertical: 24 }}
+        >
+          <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
           {/* カテゴリー選択 */}
           <Animated.View entering={FadeInDown.delay(50).duration(600)}>
             <Card variant="elevated" className="mb-6">
@@ -200,6 +209,7 @@ export default function AddCustomDrinkScreen() {
 
           {/* 下部余白（タブバー分） */}
           <View className="h-24" />
+          </ResponsiveContainer>
         </ScrollView>
       </View>
     </SafeAreaView>

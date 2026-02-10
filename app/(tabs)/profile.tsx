@@ -12,11 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
 import { useSyncStore } from '@/stores/sync';
 import { useThemeStore, ThemeMode } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { resendConfirmationEmail } from '@/lib/auth';
 import { calculateAge } from '@/lib/database';
 import { getXPInfo, getXPToNextLevel } from '@/lib/xp';
@@ -173,6 +174,8 @@ export default function ProfileScreen() {
     );
   };
 
+  const { isMd, isTablet } = useResponsive();
+
   if (!user) return null;
 
   const totalPending = pendingPersonalLogs + pendingEventLogs;
@@ -182,8 +185,11 @@ export default function ProfileScreen() {
       {/* オフライン/同期ステータスバナー */}
       <SyncStatusBanner />
 
-      <ScrollView className="flex-1">
-        <View className="px-6 py-8">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
+      >
+        <ResponsiveContainer className={`px-6 py-8 ${isMd ? 'max-w-2xl' : ''}`}>
           {/* ヘッダー */}
           <View className="items-center mb-8">
             <TouchableOpacity className="mb-4">
@@ -668,7 +674,7 @@ export default function ProfileScreen() {
               )}
             </>
           )}
-        </View>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   );

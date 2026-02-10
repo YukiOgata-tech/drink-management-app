@@ -11,12 +11,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
+import { useResponsive } from '@/lib/responsive';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import {
@@ -56,6 +58,7 @@ export default function BarcodeScanScreen() {
   const [resultState, setResultState] = useState<ResultState>('idle');
   const [product, setProduct] = useState<OpenFoodFactsProduct | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const { isMd } = useResponsive();
 
   // 手動入力用の容量・度数
   const [customMl, setCustomMl] = useState('');
@@ -238,9 +241,13 @@ export default function BarcodeScanScreen() {
 
           <ScrollView
             style={styles.flex}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              isMd && { alignItems: 'center' },
+            ]}
             keyboardShouldPersistTaps="handled"
           >
+            <ResponsiveContainer className={isMd ? 'max-w-xl w-full' : 'w-full'}>
             {resultState === 'found' && product && (
               <Animated.View entering={FadeInDown.duration(400)}>
                 <Card variant="elevated" style={styles.resultCard}>
@@ -386,6 +393,7 @@ export default function BarcodeScanScreen() {
                 </Card>
               </Animated.View>
             )}
+            </ResponsiveContainer>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -422,7 +430,8 @@ export default function BarcodeScanScreen() {
             <Text style={styles.headerTitle}>バーコード入力</Text>
           </View>
 
-          <View style={styles.manualInputContainer}>
+          <View style={[styles.manualInputContainer, isMd && { alignItems: 'center' }]}>
+            <ResponsiveContainer className={isMd ? 'max-w-md w-full' : 'w-full'}>
             <Animated.View entering={FadeInDown.duration(400)}>
               <Card variant="elevated" style={styles.manualCard}>
                 <View style={styles.barcodeIconContainer}>
@@ -465,6 +474,7 @@ export default function BarcodeScanScreen() {
                 </View>
               </Card>
             </Animated.View>
+            </ResponsiveContainer>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>

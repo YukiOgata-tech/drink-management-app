@@ -4,9 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/user';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { signUp } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ResponsiveFormContainer } from '@/components/ui/ResponsiveContainer';
 
 export default function SignUpScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -15,6 +18,9 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const setUser = useUserStore((state) => state.setUser);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const handleSignUp = async () => {
     // バリデーション
@@ -63,114 +69,116 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-white">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
         keyboardVerticalOffset={0}
       >
         <ScrollView
-          className="flex-1 px-6"
+          className="flex-1"
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, alignItems: isMd ? 'center' : undefined }}
           showsVerticalScrollIndicator={false}
         >
-          {/* 戻るボタン */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="py-4 flex-row items-center"
-          >
-            <Feather name="arrow-left" size={24} color="#4b5563" />
-            <Text className="text-base text-gray-600 ml-2">戻る</Text>
-          </TouchableOpacity>
-
-          {/* ヘッダー */}
-          <View className="pb-6">
-            <Text className="text-3xl font-bold text-gray-900">新規登録</Text>
-            <Text className="text-base text-gray-500 mt-2">
-              アカウントを作成してグループイベントに参加しましょう
-            </Text>
-          </View>
-
-          {/* フォーム */}
-          <View className="space-y-4">
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                表示名
-              </Text>
-              <Input
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="太郎"
-                autoCapitalize="words"
-                autoComplete="name"
-                textContentType="name"
-              />
-            </View>
-
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                メールアドレス
-              </Text>
-              <Input
-                value={email}
-                onChangeText={setEmail}
-                placeholder="example@email.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-                textContentType="none"
-              />
-            </View>
-
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                パスワード（6文字以上）
-              </Text>
-              <Input
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry
-                autoComplete="off"
-                textContentType="none"
-              />
-            </View>
-
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                パスワード（確認）
-              </Text>
-              <Input
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="••••••••"
-                secureTextEntry
-                autoComplete="off"
-                textContentType="none"
-              />
-            </View>
-
-            <Button
-              title={isLoading ? '登録中...' : 'アカウント作成'}
-              onPress={handleSignUp}
-              disabled={isLoading}
-              fullWidth
-            />
-          </View>
-
-          {/* ログインへのリンク */}
-          <View className="mt-8 items-center pb-8">
-            <Text className="text-gray-600 mb-3">
-              既にアカウントをお持ちの方は
-            </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text className="text-primary-600 font-semibold text-base">
-                ログインはこちら
-              </Text>
+          <ResponsiveFormContainer className="px-6 flex-1">
+            {/* 戻るボタン */}
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="py-4 flex-row items-center"
+            >
+              <Feather name="arrow-left" size={24} color={isDark ? '#9ca3af' : '#4b5563'} />
+              <Text className={`text-base ml-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>戻る</Text>
             </TouchableOpacity>
-          </View>
+
+            {/* ヘッダー */}
+            <View className="pb-6">
+              <Text className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>新規登録</Text>
+              <Text className={`text-base mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                アカウントを作成してグループイベントに参加しましょう
+              </Text>
+            </View>
+
+            {/* フォーム */}
+            <View className="space-y-4">
+              <View>
+                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  表示名
+                </Text>
+                <Input
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholder="太郎"
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                />
+              </View>
+
+              <View>
+                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  メールアドレス
+                </Text>
+                <Input
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="example@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="none"
+                />
+              </View>
+
+              <View>
+                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  パスワード（6文字以上）
+                </Text>
+                <Input
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry
+                  autoComplete="off"
+                  textContentType="none"
+                />
+              </View>
+
+              <View>
+                <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  パスワード（確認）
+                </Text>
+                <Input
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••"
+                  secureTextEntry
+                  autoComplete="off"
+                  textContentType="none"
+                />
+              </View>
+
+              <Button
+                title={isLoading ? '登録中...' : 'アカウント作成'}
+                onPress={handleSignUp}
+                disabled={isLoading}
+                fullWidth
+              />
+            </View>
+
+            {/* ログインへのリンク */}
+            <View className="mt-8 items-center pb-8">
+              <Text className={`mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                既にアカウントをお持ちの方は
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+                <Text className="text-primary-600 font-semibold text-base">
+                  ログインはこちら
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ResponsiveFormContainer>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -13,9 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
+import { useThemeStore } from '@/stores/theme';
+import { useResponsive } from '@/lib/responsive';
 import { EventRecordingRule } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +26,9 @@ export default function CreateEventScreen() {
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
   const createEvent = useEventsStore((state) => state.createEvent);
+  const colorScheme = useThemeStore((state) => state.colorScheme);
+  const isDark = colorScheme === 'dark';
+  const { isMd } = useResponsive();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -145,26 +150,30 @@ export default function CreateEventScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-gray-50">
+    <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         <View className="flex-1">
           {/* ヘッダー */}
-          <View className="px-6 py-4 bg-white border-b border-gray-200 flex-row items-center justify-between">
+          <View className={`px-6 py-4 border-b flex-row items-center justify-between ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <TouchableOpacity onPress={() => router.back()}>
               <Text className="text-primary-600 font-semibold text-base">
                 キャンセル
               </Text>
             </TouchableOpacity>
-            <Text className="text-lg font-bold text-gray-900">
+            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               イベント作成
             </Text>
             <View style={{ width: 80 }} />
           </View>
 
-          <ScrollView className="flex-1 px-6 py-6">
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
+          >
+            <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-2xl' : ''}`}>
             {/* 基本情報 */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
               <Text style={styles.sectionHeader}>基本情報</Text>
@@ -264,17 +273,20 @@ export default function CreateEventScreen() {
                 </Text>
               </Animated.View>
             )}
+            </ResponsiveContainer>
           </ScrollView>
 
           {/* 作成ボタン */}
-          <View className="px-6 py-4 pb-24 bg-white border-t border-gray-200">
-            <Button
-              title={isLoading ? '作成中...' : 'イベントを作成'}
-              onPress={handleCreate}
-              disabled={!title.trim() || isLoading}
-              fullWidth
-              variant="secondary"
-            />
+          <View className={`px-6 py-4 pb-24 border-t ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} ${isMd ? 'items-center' : ''}`}>
+            <ResponsiveContainer className={isMd ? 'max-w-2xl' : ''}>
+              <Button
+                title={isLoading ? '作成中...' : 'イベントを作成'}
+                onPress={handleCreate}
+                disabled={!title.trim() || isLoading}
+                fullWidth
+                variant="secondary"
+              />
+            </ResponsiveContainer>
           </View>
         </View>
       </KeyboardAvoidingView>
