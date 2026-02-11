@@ -14,21 +14,23 @@ ALTER TABLE public.memos ENABLE ROW LEVEL SECURITY;
 -- 1. プロフィールテーブルのRLSポリシー
 -- =====================================================
 
--- 自分のプロフィールは読み取り可能
-CREATE POLICY "Users can view own profile"
+-- 同じイベントに参加しているユーザーのプロフィールは閲覧可能（自分自身も含む）
+CREATE POLICY "Users can view profiles of same event members"
   ON public.profiles
   FOR SELECT
-  USING (auth.uid() = id);
-
--- イベントに参加しているユーザーのプロフィールは閲覧可能
--- event_membersのSELECTポリシーが簡略化されているため、このポリシーは再帰しない
-CREATE POLICY "Users can view event members profiles"
-  ON public.profiles
-  FOR SELECT
+  TO authenticated
   USING (
+    -- 自分のプロフィール
+    auth.uid() = id
+    OR
+    -- 同じイベントに参加しているユーザーのプロフィール
     EXISTS (
-      SELECT 1 FROM public.event_members em
-      WHERE em.user_id = profiles.id
+      SELECT 1
+      FROM public.event_members my_events
+      INNER JOIN public.event_members their_events
+        ON my_events.event_id = their_events.event_id
+      WHERE my_events.user_id = auth.uid()
+        AND their_events.user_id = profiles.id
     )
   );
 

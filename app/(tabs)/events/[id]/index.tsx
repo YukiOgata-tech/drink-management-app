@@ -631,19 +631,15 @@ export default function EventDetailScreen() {
         animationType="fade"
         onRequestClose={() => {
           setShowResultModal(false);
-          // ホストはイベント一覧に戻る、参加者はイベント詳細に留まる
-          if (isHost) {
-            router.replace('/(tabs)/events');
-          }
+          // モーダルを閉じたらイベント一覧に戻る（ホスト・参加者共通）
+          router.replace('/(tabs)/events');
         }}
       >
         <Pressable
           className="flex-1 bg-black/50 items-center justify-center"
           onPress={() => {
             setShowResultModal(false);
-            if (isHost) {
-              router.replace('/(tabs)/events');
-            }
+            router.replace('/(tabs)/events');
           }}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
@@ -781,10 +777,8 @@ export default function EventDetailScreen() {
                 title="閉じる"
                 onPress={() => {
                   setShowResultModal(false);
-                  // ホストはイベント一覧に戻る、参加者はイベント詳細に留まる
-                  if (isHost) {
-                    router.replace('/(tabs)/events');
-                  }
+                  // モーダルを閉じたらイベント一覧に戻る（ホスト・参加者共通）
+                  router.replace('/(tabs)/events');
                 }}
                 fullWidth
                 variant="primary"

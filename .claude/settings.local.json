@@ -18,7 +18,8 @@
       "Bash(ls:*)",
       "Bash(wc:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(eas project:info:*)"
+      "Bash(eas project:info:*)",
+      "Bash(npx expo-doctor:*)"
     ]
   }
 }
