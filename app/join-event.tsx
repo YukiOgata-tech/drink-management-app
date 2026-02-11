@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
+import { Event } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
@@ -18,24 +19,21 @@ dayjs.locale('ja');
 export default function JoinEventScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const user = useUserStore((state) => state.user);
-  const {
-    fetchEventByInviteCode,
-    addEventMember,
-    getEventById,
-  } = useEventsStore();
+  const isGuest = useUserStore((state) => state.isGuest);
+  const { fetchEventByInviteCode, addEventMember } = useEventsStore();
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
   const { isMd } = useResponsive();
 
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
-  const [eventId, setEventId] = useState<string | null>(null);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!code) {
-      Alert.alert('エラー', '招待コードが無効です', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') },
-      ]);
+      setError('招待コードが無効です');
+      setLoading(false);
       return;
     }
 
@@ -44,48 +42,71 @@ export default function JoinEventScreen() {
 
   const loadEvent = async () => {
     setLoading(true);
-    const event = await fetchEventByInviteCode(code);
+    setError(null);
 
-    if (!event) {
-      Alert.alert('エラー', 'イベントが見つかりませんでした', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') },
-      ]);
+    try {
+      const fetchedEvent = await fetchEventByInviteCode(code!);
+
+      if (!fetchedEvent) {
+        setError('イベントが見つかりませんでした');
+        setLoading(false);
+        return;
+      }
+
+      setEvent(fetchedEvent);
       setLoading(false);
-      return;
+    } catch (err) {
+      console.error('Error loading event:', err);
+      setError('イベントの読み込みに失敗しました');
+      setLoading(false);
     }
-
-    setEventId(event.id);
-    setLoading(false);
   };
 
   const handleJoin = async () => {
-    if (!user || !eventId) return;
+    if (!user || !event) return;
+
+    // ゲストユーザーはイベント参加不可
+    if (isGuest) {
+      Alert.alert(
+        'ログインが必要です',
+        'イベントに参加するにはログインしてください',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'ログイン', onPress: () => router.push('/(auth)/login') },
+        ]
+      );
+      return;
+    }
 
     setJoining(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    await addEventMember({
-      eventId,
-      userId: user.id,
-      role: 'member',
-    });
+    try {
+      await addEventMember({
+        eventId: event.id,
+        userId: user.id,
+        role: 'member',
+      });
 
-    setJoining(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    Alert.alert('参加完了', 'イベントに参加しました', [
-      {
-        text: 'イベントを見る',
-        onPress: () => router.replace(`/(tabs)/events/${eventId}`),
-      },
-    ]);
+      Alert.alert('参加完了', 'イベントに参加しました', [
+        {
+          text: 'イベントを見る',
+          onPress: () => router.replace(`/(tabs)/events/${event.id}`),
+        },
+      ]);
+    } catch (err) {
+      console.error('Error joining event:', err);
+      Alert.alert('エラー', '参加に失敗しました。もう一度お試しください。');
+    } finally {
+      setJoining(false);
+    }
   };
 
   const handleCancel = () => {
     router.replace('/(tabs)');
   };
-
-  const event = eventId ? getEventById(eventId) : null;
 
   if (loading) {
     return (
@@ -98,8 +119,36 @@ export default function JoinEventScreen() {
     );
   }
 
-  if (!event) {
-    return null;
+  if (error || !event) {
+    return (
+      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <View className="flex-1 items-center justify-center px-6">
+          <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-red-900/30' : 'bg-red-100'}`}>
+            <Feather name="alert-circle" size={40} color="#ef4444" />
+          </View>
+          <Text className={`text-xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            エラー
+          </Text>
+          <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            {error || 'イベントが見つかりませんでした'}
+          </Text>
+          <View className="space-y-3 w-full max-w-xs">
+            <Button
+              title="もう一度試す"
+              onPress={loadEvent}
+              fullWidth
+              variant="primary"
+            />
+            <Button
+              title="ホームに戻る"
+              onPress={handleCancel}
+              fullWidth
+              variant="outline"
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const recordingRuleConfig: Record<string, { icon: keyof typeof Feather.glyphMap; name: string; description: string }> = {

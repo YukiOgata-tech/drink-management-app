@@ -61,6 +61,13 @@ CREATE POLICY "Event members can view events"
     )
   );
 
+-- 認証済みユーザーは招待コードでイベントを検索可能（参加前にイベント情報を確認するため）
+CREATE POLICY "Authenticated users can lookup events by invite code"
+  ON public.events
+  FOR SELECT
+  TO authenticated
+  USING (invite_code IS NOT NULL);
+
 -- 認証済みユーザーはイベントを作成可能
 CREATE POLICY "Authenticated users can create events"
   ON public.events
@@ -95,7 +102,7 @@ CREATE POLICY "Authenticated users can view event members"
   TO authenticated
   USING (true);
 
--- ホストとマネージャーはメンバーを追加可能
+-- ホストとマネージャーはメンバーを追加可能、または認証済みユーザーは自分自身をメンバーとして追加可能
 CREATE POLICY "Host and managers can add members"
   ON public.event_members
   FOR INSERT
@@ -114,6 +121,17 @@ CREATE POLICY "Host and managers can add members"
       AND NOT EXISTS (
         SELECT 1 FROM public.event_members em
         WHERE em.event_id = event_id
+      )
+    )
+    OR
+    -- 招待コードでの参加: ユーザーは自分自身をメンバーとして追加可能
+    (
+      role = 'member'
+      AND user_id = auth.uid()
+      AND NOT EXISTS (
+        SELECT 1 FROM public.event_members em
+        WHERE em.event_id = event_id
+          AND em.user_id = auth.uid()
       )
     )
   );

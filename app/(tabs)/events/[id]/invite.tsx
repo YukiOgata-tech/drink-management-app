@@ -130,9 +130,14 @@ export default function InviteScreen() {
                 </Text>
                 <View className="bg-gray-100 px-6 py-4 rounded-xl mb-4">
                   <Text className="text-3xl font-bold text-gray-900 tracking-widest">
-                    {event.inviteCode}
+                    {event.inviteCode || '読み込み中...'}
                   </Text>
                 </View>
+                {!event.inviteCode && (
+                  <Text className="text-sm text-red-500 mb-2">
+                    招待コードの取得に失敗しました。イベントを再読み込みしてください。
+                  </Text>
+                )}
                 <Button
                   title="コードをコピー"
                   icon={<Feather name="copy" size={18} color="#6b7280" />}

@@ -36,7 +36,14 @@ export async function createEvent(params: {
     }
 
     if (!data) {
-      return { event: null, error: { message: 'イベントの作成に失敗しました' } };
+      return { event: null, error: { message: 'イベントの作成に失敗しました（データが返されませんでした）' } };
+    }
+
+    // デバッグ: RPC関数から返されたデータを確認
+    console.log('createEvent RPC response:', JSON.stringify(data, null, 2));
+
+    if (!data.invite_code) {
+      console.warn('Warning: invite_code is missing from RPC response');
     }
 
     const event: Event = {

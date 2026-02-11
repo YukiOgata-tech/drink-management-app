@@ -137,26 +137,36 @@ export default function EventsScreen() {
           <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-4xl' : ''}`}>
           {/* アクションボタン */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <Button
-                  title="イベント作成"
-                  icon={<Feather name="plus" size={20} color="#ffffff" />}
-                  onPress={() => router.push('/(tabs)/events/create')}
-                  fullWidth
-                  size="lg"
-                  variant="secondary"
-                />
-              </View>
-              <View className="flex-1">
-                <Button
-                  title="QRで参加"
-                  icon={<Feather name="camera" size={20} color="#6b7280" />}
-                  onPress={() => router.push('/(tabs)/events/scan')}
-                  fullWidth
-                  size="lg"
-                  variant="outline"
-                />
+            <View className="space-y-3">
+              {/* イベント作成 */}
+              <Button
+                title="イベント作成"
+                icon={<Feather name="plus" size={20} color="#ffffff" />}
+                onPress={() => router.push('/(tabs)/events/create')}
+                fullWidth
+                size="lg"
+                variant="secondary"
+              />
+              {/* 参加方法 */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Button
+                    title="QRで参加"
+                    icon={<Feather name="camera" size={18} color="#6b7280" />}
+                    onPress={() => router.push('/(tabs)/events/scan')}
+                    fullWidth
+                    variant="outline"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Button
+                    title="コードで参加"
+                    icon={<Feather name="hash" size={18} color="#6b7280" />}
+                    onPress={() => router.push('/(tabs)/events/join-by-code')}
+                    fullWidth
+                    variant="outline"
+                  />
+                </View>
               </View>
             </View>
           </Animated.View>
