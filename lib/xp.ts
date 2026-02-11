@@ -6,10 +6,73 @@ import { UserXP, PersonalDrinkLog } from '@/types';
 export const XP_VALUES = {
   DRINK_LOG: 10, // 飲酒記録追加（純アルコール量ベースの場合は未使用）
   EVENT_JOIN: 50, // イベント参加
-  EVENT_COMPLETE: 30, // イベント完了
+  EVENT_COMPLETE: 30, // イベント完了（基本値）
   DAILY_BONUS: 5, // 当日初回記録ボーナス
   XP_PER_GRAM: 1, // 純アルコール1gあたりのXP
+  // 参加人数ボーナス
+  PARTICIPANT_BONUS_PER_PERSON: 5, // 参加者1人あたりの追加XP
+  PARTICIPANT_BONUS_MAX: 50, // 参加人数ボーナスの上限
+  // ランキングボーナス
+  RANKING_1ST: 100, // 1位ボーナス
+  RANKING_2ND: 50, // 2位ボーナス
+  RANKING_3RD: 30, // 3位ボーナス
 } as const;
+
+/**
+ * ランキングに基づくボーナスXPを計算
+ * @param rank 順位（1から始まる）
+ */
+export function getRankingBonus(rank: number): number {
+  switch (rank) {
+    case 1:
+      return XP_VALUES.RANKING_1ST;
+    case 2:
+      return XP_VALUES.RANKING_2ND;
+    case 3:
+      return XP_VALUES.RANKING_3RD;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * 参加人数に基づくボーナスXPを計算
+ * @param participantCount 参加者数
+ */
+export function getParticipantBonus(participantCount: number): number {
+  const bonus = (participantCount - 1) * XP_VALUES.PARTICIPANT_BONUS_PER_PERSON;
+  return Math.min(bonus, XP_VALUES.PARTICIPANT_BONUS_MAX);
+}
+
+/**
+ * イベント完了時の総XPを計算
+ * @param participantCount 参加者数
+ * @param rank 順位（1から始まる、nullの場合はランキングボーナスなし）
+ * @param drinkLogsXP 飲酒記録から得たXP
+ */
+export function calculateEventCompleteXP(
+  participantCount: number,
+  rank: number | null,
+  drinkLogsXP: number
+): {
+  baseXP: number;
+  participantBonus: number;
+  rankingBonus: number;
+  drinkLogsXP: number;
+  totalXP: number;
+} {
+  const baseXP = XP_VALUES.EVENT_COMPLETE;
+  const participantBonus = getParticipantBonus(participantCount);
+  const rankingBonus = rank ? getRankingBonus(rank) : 0;
+
+  return {
+    baseXP,
+    participantBonus,
+    rankingBonus,
+    drinkLogsXP,
+    totalXP: baseXP + participantBonus + rankingBonus + drinkLogsXP,
+  };
+}
 
 /**
  * 指定レベルに必要な累計XP

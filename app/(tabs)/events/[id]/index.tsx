@@ -22,7 +22,8 @@ import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser } from '@/types';
-import { XP_VALUES } from '@/lib/xp';
+import { XP_VALUES, calculateEventCompleteXP, getRankingBonus, getParticipantBonus } from '@/lib/xp';
+import { hasClaimedEventXP, markEventXPClaimed } from '@/lib/storage/eventXpClaimed';
 import Animated, { FadeInDown, FadeIn, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
@@ -32,7 +33,11 @@ import 'dayjs/locale/ja';
 dayjs.locale('ja');
 
 interface EventResultData {
-  eventCompleteXP: number;
+  baseXP: number;
+  participantBonus: number;
+  participantCount: number;
+  rankingBonus: number;
+  rank: number | null;
   drinkLogsCount: number;
   drinkLogsXP: number;
   totalXP: number;
@@ -65,9 +70,32 @@ export default function EventDetailScreen() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [xpClaimChecked, setXpClaimChecked] = useState(false);
 
   const event = getEventById(id);
   const members = getEventMembers(id);
+
+  // ユーザーのランキングを計算
+  const calculateUserRank = (userId: string, logs: DrinkLogWithUser[]): number | null => {
+    // 各ユーザーの純アルコール量を集計
+    const userTotals: Record<string, number> = {};
+    logs
+      .filter((log) => log.status === 'approved')
+      .forEach((log) => {
+        if (!userTotals[log.userId]) {
+          userTotals[log.userId] = 0;
+        }
+        userTotals[log.userId] += log.pureAlcoholG * log.count;
+      });
+
+    // ランキングを作成
+    const ranking = Object.entries(userTotals)
+      .sort(([, a], [, b]) => b - a)
+      .map(([id], index) => ({ userId: id, rank: index + 1 }));
+
+    const userRanking = ranking.find((r) => r.userId === userId);
+    return userRanking?.rank || null;
+  };
 
   // 画面がフォーカスされるたびにデータを再取得
   useFocusEffect(
@@ -75,6 +103,72 @@ export default function EventDetailScreen() {
       loadData();
     }, [id])
   );
+
+  // 終了したイベントで参加者がXPを受け取っていない場合、XPを付与
+  useEffect(() => {
+    const checkAndClaimXP = async () => {
+      if (!user || isGuest || !event || !event.endedAt || xpClaimChecked) return;
+
+      setXpClaimChecked(true);
+
+      // 既にXPを受け取っているか確認
+      const alreadyClaimed = await hasClaimedEventXP(user.id, id);
+      if (alreadyClaimed) return;
+
+      // XPを計算
+      try {
+        // このイベントで自分が記録した飲酒記録を計算
+        const myLogs = drinkLogs.filter(
+          (log) => log.userId === user.id && log.status === 'approved'
+        );
+        const drinkLogsCount = myLogs.reduce((sum, log) => sum + log.count, 0);
+        const drinkLogsXP = myLogs.reduce(
+          (sum, log) => sum + Math.floor(log.pureAlcoholG), 0
+        );
+
+        // 参加人数とランキングを取得
+        const participantCount = members.length;
+        const userRank = calculateUserRank(user.id, drinkLogs);
+
+        // 総XPを計算
+        const xpDetails = calculateEventCompleteXP(
+          participantCount,
+          userRank,
+          drinkLogsXP
+        );
+
+        // XPを付与
+        const xpResult = await addXP(xpDetails.totalXP, 'event_complete');
+
+        // XP受け取り済みをマーク
+        await markEventXPClaimed(user.id, id);
+
+        // 結果データを設定
+        setResultData({
+          baseXP: xpDetails.baseXP,
+          participantBonus: xpDetails.participantBonus,
+          participantCount,
+          rankingBonus: xpDetails.rankingBonus,
+          rank: userRank,
+          drinkLogsCount,
+          drinkLogsXP,
+          totalXP: xpDetails.totalXP,
+          leveledUp: xpResult.leveledUp,
+          newLevel: xpResult.newLevel,
+          debtPaid: xpResult.debtPaid,
+        });
+        setShowResultModal(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        console.error('Error claiming event XP:', error);
+      }
+    };
+
+    // drinkLogsとmembersが読み込まれた後にXPチェック
+    if (!loading && drinkLogs.length >= 0 && members.length > 0) {
+      checkAndClaimXP();
+    }
+  }, [user, isGuest, event, id, loading, drinkLogs, members, xpClaimChecked]);
 
   const loadData = async () => {
     setLoading(true);
@@ -116,25 +210,42 @@ export default function EventDetailScreen() {
             // 認証ユーザーの場合、イベント完了XPを付与
             if (!isGuest && user) {
               try {
-                // イベント完了XP付与
-                const xpResult = await addXP(XP_VALUES.EVENT_COMPLETE, 'event_complete');
-
                 // このイベントで自分が記録した飲酒記録を計算
                 const myLogs = drinkLogs.filter(
                   (log) => log.userId === user.id && log.status === 'approved'
                 );
                 const drinkLogsCount = myLogs.reduce((sum, log) => sum + log.count, 0);
-                // 飲酒記録で得たXP（既に付与済みだが表示用、純アルコール量ベース）
                 const drinkLogsXP = myLogs.reduce(
                   (sum, log) => sum + Math.floor(log.pureAlcoholG), 0
                 );
 
+                // 参加人数とランキングを取得
+                const participantCount = members.length;
+                const userRank = calculateUserRank(user.id, drinkLogs);
+
+                // 総XPを計算
+                const xpDetails = calculateEventCompleteXP(
+                  participantCount,
+                  userRank,
+                  drinkLogsXP
+                );
+
+                // XPを付与
+                const xpResult = await addXP(xpDetails.totalXP, 'event_complete');
+
+                // XP受け取り済みをマーク（ホストも記録）
+                await markEventXPClaimed(user.id, id);
+
                 // 結果データを設定
                 setResultData({
-                  eventCompleteXP: XP_VALUES.EVENT_COMPLETE,
+                  baseXP: xpDetails.baseXP,
+                  participantBonus: xpDetails.participantBonus,
+                  participantCount,
+                  rankingBonus: xpDetails.rankingBonus,
+                  rank: userRank,
                   drinkLogsCount,
                   drinkLogsXP,
-                  totalXP: XP_VALUES.EVENT_COMPLETE + drinkLogsXP,
+                  totalXP: xpDetails.totalXP,
                   leveledUp: xpResult.leveledUp,
                   newLevel: xpResult.newLevel,
                   debtPaid: xpResult.debtPaid,
@@ -315,11 +426,63 @@ export default function EventDetailScreen() {
           }
         >
           <ResponsiveContainer className={isMd ? 'max-w-3xl w-full' : 'w-full'}>
+          {/* 終了バナー（終了したイベントの場合） */}
+          {!isActive && (
+            <Animated.View entering={FadeInDown.delay(100).duration(600)}>
+              <View className={`mb-6 rounded-xl p-4 border-2 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-gray-100 border-gray-300'}`}>
+                <View className="flex-row items-center justify-center mb-3">
+                  <View className={`w-12 h-12 rounded-full items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
+                    <Feather name="flag" size={24} color="#6b7280" />
+                  </View>
+                </View>
+                <Text className={`text-lg font-bold text-center mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  このイベントは終了しました
+                </Text>
+                <Text className={`text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {dayjs(event.endedAt).format('M月D日 (ddd) HH:mm')} に終了
+                </Text>
+
+                {/* 自分の記録サマリー */}
+                {user && (() => {
+                  const myLogs = drinkLogs.filter(
+                    (log) => log.userId === user.id && log.status === 'approved'
+                  );
+                  const totalDrinks = myLogs.reduce((sum, log) => sum + log.count, 0);
+                  const totalAlcohol = myLogs.reduce((sum, log) => sum + log.pureAlcoholG * log.count, 0);
+
+                  if (totalDrinks === 0) return null;
+
+                  return (
+                    <View className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                      <Text className={`text-xs text-center mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        あなたの記録
+                      </Text>
+                      <View className="flex-row justify-center gap-6">
+                        <View className="items-center">
+                          <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {totalDrinks}
+                          </Text>
+                          <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>杯</Text>
+                        </View>
+                        <View className="items-center">
+                          <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {totalAlcohol.toFixed(1)}
+                          </Text>
+                          <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>g (純アルコール)</Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })()}
+              </View>
+            </Animated.View>
+          )}
+
           {/* クイックアクション */}
           {isActive && (
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
               <Card variant="elevated" className="mb-6">
-                <Text className="text-lg font-bold text-gray-900 mb-3">
+                <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   アクション
                 </Text>
                 <View className="space-y-2">
@@ -350,31 +513,33 @@ export default function EventDetailScreen() {
             </Animated.View>
           )}
 
-          {/* 招待コード */}
-          <Animated.View
-            entering={FadeInDown.delay(150).duration(600)}
-            className="mb-6"
-          >
-            <TouchableOpacity
-              onPress={() => router.push(`/(tabs)/events/${id}/invite`)}
-              activeOpacity={0.7}
+          {/* 招待コード（開催中のみ表示） */}
+          {isActive && (
+            <Animated.View
+              entering={FadeInDown.delay(150).duration(600)}
+              className="mb-6"
             >
-              <Card variant="elevated">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <Feather name="link-2" size={18} color="#6b7280" style={{ marginRight: 8 }} />
-                    <Text className="text-sm text-gray-500">招待コード</Text>
+              <TouchableOpacity
+                onPress={() => router.push(`/(tabs)/events/${id}/invite`)}
+                activeOpacity={0.7}
+              >
+                <Card variant="elevated">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <Feather name="link-2" size={18} color="#6b7280" style={{ marginRight: 8 }} />
+                      <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>招待コード</Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Text className="text-xl font-bold text-primary-600 tracking-widest mr-2">
+                        {event.inviteCode || '---'}
+                      </Text>
+                      <Feather name="chevron-right" size={18} color="#9ca3af" />
+                    </View>
                   </View>
-                  <View className="flex-row items-center">
-                    <Text className="text-xl font-bold text-primary-600 tracking-widest mr-2">
-                      {event.inviteCode || '---'}
-                    </Text>
-                    <Feather name="chevron-right" size={18} color="#9ca3af" />
-                  </View>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          </Animated.View>
+                </Card>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
           {/* 参加者 */}
           <Animated.View
@@ -466,50 +631,99 @@ export default function EventDetailScreen() {
         animationType="fade"
         onRequestClose={() => {
           setShowResultModal(false);
-          router.replace('/(tabs)/events');
+          // ホストはイベント一覧に戻る、参加者はイベント詳細に留まる
+          if (isHost) {
+            router.replace('/(tabs)/events');
+          }
         }}
       >
         <Pressable
           className="flex-1 bg-black/50 items-center justify-center"
           onPress={() => {
             setShowResultModal(false);
-            router.replace('/(tabs)/events');
+            if (isHost) {
+              router.replace('/(tabs)/events');
+            }
           }}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
             <Animated.View
               entering={ZoomIn.duration(300)}
-              className="bg-white mx-6 rounded-2xl p-6 min-w-[300px]"
+              className={`mx-6 rounded-2xl p-6 min-w-[300px] ${isDark ? 'bg-gray-800' : 'bg-white'}`}
             >
               <View className="items-center mb-4">
                 <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center">
                   <Feather name="check-circle" size={48} color="#16a34a" />
                 </View>
               </View>
-              <Text className="text-2xl font-bold text-center text-gray-900 mb-2">
-                イベント終了！
+              <Text className={`text-2xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {isHost ? 'イベント終了！' : 'お疲れさまでした！'}
               </Text>
-              <Text className="text-center text-gray-500 mb-6">
-                お疲れさまでした
+              <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                {isHost ? 'お疲れさまでした' : 'イベントは終了しました'}
               </Text>
 
               {resultData && (
                 <>
+                  {/* ランキング表示 */}
+                  {resultData.rank && resultData.rank <= 3 && (
+                    <View className="items-center mb-4">
+                      <View className={`px-4 py-2 rounded-full ${
+                        resultData.rank === 1 ? 'bg-yellow-100' :
+                        resultData.rank === 2 ? 'bg-gray-200' : 'bg-orange-100'
+                      }`}>
+                        <Text className={`text-lg font-bold ${
+                          resultData.rank === 1 ? 'text-yellow-600' :
+                          resultData.rank === 2 ? 'text-gray-600' : 'text-orange-600'
+                        }`}>
+                          🏆 {resultData.rank}位
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
                   {/* XP獲得サマリー */}
-                  <View className="bg-gray-50 rounded-xl p-4 mb-4">
-                    <Text className="text-sm font-semibold text-gray-500 mb-3">
+                  <View className={`rounded-xl p-4 mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       獲得XP
                     </Text>
                     <View className="space-y-2">
+                      {/* 基本XP */}
                       <View className="flex-row justify-between">
-                        <Text className="text-gray-700">イベント完了ボーナス</Text>
+                        <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>イベント完了</Text>
                         <Text className="font-bold text-primary-600">
-                          +{resultData.eventCompleteXP} XP
+                          +{resultData.baseXP} XP
                         </Text>
                       </View>
+
+                      {/* 参加人数ボーナス */}
+                      {resultData.participantBonus > 0 && (
+                        <View className="flex-row justify-between">
+                          <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>
+                            参加者ボーナス ({resultData.participantCount}人)
+                          </Text>
+                          <Text className="font-bold text-green-600">
+                            +{resultData.participantBonus} XP
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* ランキングボーナス */}
+                      {resultData.rankingBonus > 0 && (
+                        <View className="flex-row justify-between">
+                          <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>
+                            {resultData.rank}位ボーナス
+                          </Text>
+                          <Text className="font-bold text-yellow-600">
+                            +{resultData.rankingBonus} XP
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* 飲酒記録XP */}
                       {resultData.drinkLogsCount > 0 && (
                         <View className="flex-row justify-between">
-                          <Text className="text-gray-700">
+                          <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>
                             飲酒記録 ({resultData.drinkLogsCount}杯)
                           </Text>
                           <Text className="font-bold text-primary-600">
@@ -517,8 +731,10 @@ export default function EventDetailScreen() {
                           </Text>
                         </View>
                       )}
-                      <View className="border-t border-gray-200 pt-2 mt-2 flex-row justify-between">
-                        <Text className="font-bold text-gray-900">合計</Text>
+
+                      {/* 合計 */}
+                      <View className={`border-t pt-2 mt-2 flex-row justify-between ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                        <Text className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>合計</Text>
                         <Text className="font-bold text-xl text-primary-600">
                           +{resultData.totalXP} XP
                         </Text>
@@ -565,7 +781,10 @@ export default function EventDetailScreen() {
                 title="閉じる"
                 onPress={() => {
                   setShowResultModal(false);
-                  router.replace('/(tabs)/events');
+                  // ホストはイベント一覧に戻る、参加者はイベント詳細に留まる
+                  if (isHost) {
+                    router.replace('/(tabs)/events');
+                  }
                 }}
                 fullWidth
                 variant="primary"

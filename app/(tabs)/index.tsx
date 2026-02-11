@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
+import { EndedEventBanner } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
 import { useEventsStore } from '@/stores/events';
@@ -77,6 +78,9 @@ export default function HomeScreen() {
     <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* オフライン/同期ステータスバナー */}
       <SyncStatusBanner />
+
+      {/* 終了イベント通知バナー */}
+      <EndedEventBanner />
 
       <ScrollView
           className="flex-1"
