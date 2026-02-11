@@ -242,6 +242,55 @@ export async function getDrinkLogApprovals(drinkLogId: string): Promise<{ approv
 }
 
 /**
+ * 複数の飲酒記録の承認一覧を一括取得（N+1問題対策）
+ */
+export async function getDrinkLogApprovalsBatch(
+  drinkLogIds: string[]
+): Promise<{ approvalsMap: Map<string, DrinkLogApproval[]>; error: DatabaseError | null }> {
+  if (drinkLogIds.length === 0) {
+    return { approvalsMap: new Map(), error: null };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('drink_log_approvals')
+      .select('*')
+      .in('drink_log_id', drinkLogIds)
+      .order('approved_at', { ascending: true });
+
+    if (error) {
+      return { approvalsMap: new Map(), error: { message: error.message, code: error.code } };
+    }
+
+    // drinkLogIdごとにグループ化
+    const approvalsMap = new Map<string, DrinkLogApproval[]>();
+
+    // 初期化（空配列をセット）
+    for (const id of drinkLogIds) {
+      approvalsMap.set(id, []);
+    }
+
+    // 承認データをマッピング
+    for (const item of data) {
+      const approval: DrinkLogApproval = {
+        id: item.id,
+        drinkLogId: item.drink_log_id,
+        approvedByUserId: item.approved_by_user_id,
+        approvedAt: item.approved_at,
+      };
+
+      const existing = approvalsMap.get(item.drink_log_id) || [];
+      existing.push(approval);
+      approvalsMap.set(item.drink_log_id, existing);
+    }
+
+    return { approvalsMap, error: null };
+  } catch (err: any) {
+    return { approvalsMap: new Map(), error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
+}
+
+/**
  * 承認を取り消し
  */
 export async function removeApproval(

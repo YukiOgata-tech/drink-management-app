@@ -257,14 +257,115 @@ export async function deleteEvent(eventId: string): Promise<{ error: DatabaseErr
 // =====================================================
 
 /**
- * イベントメンバーを追加
+ * ユーザーがイベントのメンバーかどうかを確認
+ */
+export async function isEventMember(
+  eventId: string,
+  userId: string
+): Promise<{ isMember: boolean; error: DatabaseError | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('event_members')
+      .select('user_id')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      return { isMember: false, error: { message: error.message, code: error.code } };
+    }
+
+    return { isMember: !!data, error: null };
+  } catch (err: any) {
+    return { isMember: false, error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
+}
+
+/**
+ * イベント参加の事前検証
+ * - イベントが存在するか
+ * - イベントが終了していないか
+ * - 既に参加していないか
+ */
+export async function validateEventJoin(
+  eventId: string,
+  userId: string
+): Promise<{
+  canJoin: boolean;
+  error: string | null;
+  errorCode?: 'EVENT_NOT_FOUND' | 'EVENT_ALREADY_ENDED' | 'ALREADY_MEMBER' | 'UNKNOWN';
+}> {
+  try {
+    // イベントを取得
+    const { event, error: eventError } = await getEventById(eventId);
+
+    if (eventError || !event) {
+      return {
+        canJoin: false,
+        error: 'イベントが見つかりません',
+        errorCode: 'EVENT_NOT_FOUND',
+      };
+    }
+
+    // イベントが終了していないか確認
+    if (event.endedAt) {
+      return {
+        canJoin: false,
+        error: 'このイベントは既に終了しています',
+        errorCode: 'EVENT_ALREADY_ENDED',
+      };
+    }
+
+    // 既に参加しているか確認
+    const { isMember, error: memberError } = await isEventMember(eventId, userId);
+
+    if (memberError) {
+      return {
+        canJoin: false,
+        error: '参加状態の確認に失敗しました',
+        errorCode: 'UNKNOWN',
+      };
+    }
+
+    if (isMember) {
+      return {
+        canJoin: false,
+        error: '既にこのイベントに参加しています',
+        errorCode: 'ALREADY_MEMBER',
+      };
+    }
+
+    return { canJoin: true, error: null };
+  } catch (err: any) {
+    return {
+      canJoin: false,
+      error: err.message || '予期しないエラーが発生しました',
+      errorCode: 'UNKNOWN',
+    };
+  }
+}
+
+/**
+ * イベントメンバーを追加（検証付き）
  */
 export async function addEventMember(params: {
   eventId: string;
   userId: string;
   role: 'host' | 'manager' | 'member';
-}): Promise<{ error: DatabaseError | null }> {
+  skipValidation?: boolean;
+}): Promise<{ error: DatabaseError | null; errorCode?: string }> {
   try {
+    // 検証をスキップしない場合は事前チェック
+    if (!params.skipValidation) {
+      const validation = await validateEventJoin(params.eventId, params.userId);
+      if (!validation.canJoin) {
+        return {
+          error: { message: validation.error || '参加できません' },
+          errorCode: validation.errorCode,
+        };
+      }
+    }
+
     const { error } = await supabase
       .from('event_members')
       .insert({
@@ -274,6 +375,13 @@ export async function addEventMember(params: {
       });
 
     if (error) {
+      // 重複エラーの場合は特別なメッセージ
+      if (error.code === '23505') {
+        return {
+          error: { message: '既にこのイベントに参加しています', code: error.code },
+          errorCode: 'ALREADY_MEMBER',
+        };
+      }
       return { error: { message: error.message, code: error.code } };
     }
 

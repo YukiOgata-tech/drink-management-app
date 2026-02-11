@@ -34,7 +34,7 @@ interface EventsState {
     eventId: string;
     userId: string;
     role: 'host' | 'manager' | 'member';
-  }) => Promise<void>;
+  }) => Promise<{ error: { message: string; code?: string } | null; errorCode?: string }>;
   updateEventMember: (eventId: string, userId: string, updates: Partial<EventMember>) => Promise<void>;
   leaveEvent: (eventId: string, userId: string) => Promise<void>;
 
@@ -202,15 +202,23 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   },
 
   addEventMember: async (params) => {
-    const { error } = await EventsAPI.addEventMember(params);
+    const { error, errorCode } = await EventsAPI.addEventMember(params);
 
     if (error) {
       set({ error: error.message });
-      return;
+      return { error, errorCode };
     }
 
     // メンバーリストを再取得
     await get().fetchEventMembers(params.eventId);
+
+    // イベントを events 配列に追加（まだない場合）
+    const existingEvent = get().events.find(e => e.id === params.eventId);
+    if (!existingEvent) {
+      await get().fetchEventById(params.eventId);
+    }
+
+    return { error: null };
   },
 
   updateEventMember: async (eventId: string, userId: string, updates: Partial<EventMember>) => {

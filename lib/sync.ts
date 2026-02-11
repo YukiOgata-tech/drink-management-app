@@ -2,12 +2,21 @@ import NetInfo from '@react-native-community/netinfo';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
 import { useNetworkStore } from '@/stores/network';
 import { useUserStore } from '@/stores/user';
-import { getPendingEventDrinkLogs, syncEventDrinkLog, markEventLogAsSynced, EventDrinkLogPending } from './storage/eventDrinkLogs';
+import {
+  getPendingEventDrinkLogs,
+  markEventLogAsSynced,
+  incrementRetryCount,
+  getFailedCount,
+  EventDrinkLogPending,
+  MAX_RETRY_COUNT,
+} from './storage/eventDrinkLogs';
 import { createDrinkLog } from './drink-logs';
+import { parseError } from './errors';
 
 export type SyncResult = {
   personalLogs: { synced: number; failed: number };
-  eventLogs: { synced: number; failed: number };
+  eventLogs: { synced: number; failed: number; movedToFailed: number };
+  failedLogsCount: number;  // 復旧待ちの失敗ログ数
 };
 
 /**
@@ -16,7 +25,8 @@ export type SyncResult = {
 export async function syncAllPendingData(): Promise<SyncResult> {
   const result: SyncResult = {
     personalLogs: { synced: 0, failed: 0 },
-    eventLogs: { synced: 0, failed: 0 },
+    eventLogs: { synced: 0, failed: 0, movedToFailed: 0 },
+    failedLogsCount: 0,
   };
 
   const userState = useUserStore.getState();
@@ -43,38 +53,73 @@ export async function syncAllPendingData(): Promise<SyncResult> {
     console.error('[Sync] Personal logs sync failed:', error);
   }
 
-  // 2. イベント飲酒記録を同期
+  // 2. イベント飲酒記録を同期（リトライロジック付き）
   try {
     const pendingEventLogs = await getPendingEventDrinkLogs();
     console.log(`[Sync] Found ${pendingEventLogs.length} pending event logs`);
 
     for (const pendingLog of pendingEventLogs) {
-      const { drinkLog, error } = await createDrinkLog({
-        userId: pendingLog.userId,
-        eventId: pendingLog.eventId,
-        drinkId: pendingLog.drinkId,
-        drinkName: pendingLog.drinkName,
-        ml: pendingLog.ml,
-        abv: pendingLog.abv,
-        pureAlcoholG: pendingLog.pureAlcoholG,
-        count: pendingLog.count,
-        memo: pendingLog.memo,
-        recordedById: pendingLog.recordedById,
-        status: pendingLog.status,
-      });
+      try {
+        const { drinkLog, error } = await createDrinkLog({
+          userId: pendingLog.userId,
+          eventId: pendingLog.eventId,
+          drinkId: pendingLog.drinkId,
+          drinkName: pendingLog.drinkName,
+          ml: pendingLog.ml,
+          abv: pendingLog.abv,
+          pureAlcoholG: pendingLog.pureAlcoholG,
+          count: pendingLog.count,
+          memo: pendingLog.memo,
+          recordedById: pendingLog.recordedById,
+          status: pendingLog.status,
+        });
 
-      if (drinkLog && !error) {
-        await markEventLogAsSynced(pendingLog.localId);
-        result.eventLogs.synced++;
-        console.log(`[Sync] Event log ${pendingLog.localId} synced successfully`);
-      } else {
-        result.eventLogs.failed++;
-        console.error(`[Sync] Failed to sync event log ${pendingLog.localId}:`, error);
+        if (drinkLog && !error) {
+          await markEventLogAsSynced(pendingLog.localId);
+          result.eventLogs.synced++;
+          console.log(`[Sync] Event log ${pendingLog.localId} synced successfully`);
+        } else {
+          // エラー発生 → リトライカウントをインクリメント
+          const parsedError = parseError(error);
+          const { shouldRemove } = await incrementRetryCount(
+            pendingLog.localId,
+            parsedError.message
+          );
+
+          if (shouldRemove) {
+            result.eventLogs.movedToFailed++;
+            console.warn(
+              `[Sync] Event log ${pendingLog.localId} moved to failed after ${MAX_RETRY_COUNT} retries`
+            );
+          } else {
+            result.eventLogs.failed++;
+            console.log(
+              `[Sync] Event log ${pendingLog.localId} failed (retry ${pendingLog.retryCount + 1}/${MAX_RETRY_COUNT}): ${parsedError.message}`
+            );
+          }
+        }
+      } catch (syncError: any) {
+        // 予期しないエラー
+        const parsedError = parseError(syncError);
+        const { shouldRemove } = await incrementRetryCount(
+          pendingLog.localId,
+          parsedError.message
+        );
+
+        if (shouldRemove) {
+          result.eventLogs.movedToFailed++;
+        } else {
+          result.eventLogs.failed++;
+        }
+        console.error(`[Sync] Unexpected error for ${pendingLog.localId}:`, syncError);
       }
     }
   } catch (error) {
     console.error('[Sync] Event logs sync failed:', error);
   }
+
+  // 失敗ログ数を取得
+  result.failedLogsCount = await getFailedCount();
 
   console.log('[Sync] Sync complete:', result);
   return result;

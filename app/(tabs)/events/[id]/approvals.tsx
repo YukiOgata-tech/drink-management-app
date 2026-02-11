@@ -53,15 +53,9 @@ export default function ApprovalsScreen() {
       const pendingLogs = logs.filter((log) => log.status === 'pending');
       setDrinkLogs(pendingLogs);
 
-      // 各記録の承認数を取得
-      const approvalsMap = new Map();
-      for (const log of pendingLogs) {
-        const { approvals: logApprovals } =
-          await DrinkLogsAPI.getDrinkLogApprovals(log.id);
-        if (logApprovals) {
-          approvalsMap.set(log.id, logApprovals);
-        }
-      }
+      // 全ての承認を一括取得（N+1問題対策）
+      const pendingLogIds = pendingLogs.map((log) => log.id);
+      const { approvalsMap } = await DrinkLogsAPI.getDrinkLogApprovalsBatch(pendingLogIds);
       setApprovals(approvalsMap);
     }
   };

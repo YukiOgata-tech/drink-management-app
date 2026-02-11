@@ -8,6 +8,8 @@ import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
+import { validateEventJoin } from '@/lib/events';
+import { CONTEXT_ERRORS } from '@/lib/errors';
 import { Event } from '@/types';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -29,6 +31,7 @@ export default function JoinEventScreen() {
   const [joining, setJoining] = useState(false);
   const [event, setEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<'not_found' | 'ended' | 'already_joined' | 'network' | 'general' | null>(null);
 
   useEffect(() => {
     if (!code) {
@@ -43,21 +46,47 @@ export default function JoinEventScreen() {
   const loadEvent = async () => {
     setLoading(true);
     setError(null);
+    setErrorType(null);
 
     try {
       const fetchedEvent = await fetchEventByInviteCode(code!);
 
       if (!fetchedEvent) {
         setError('イベントが見つかりませんでした');
+        setErrorType('not_found');
         setLoading(false);
         return;
       }
 
+      // イベントが終了しているかチェック
+      if (fetchedEvent.endedAt) {
+        setEvent(fetchedEvent);
+        setError('このイベントは既に終了しています');
+        setErrorType('ended');
+        setLoading(false);
+        return;
+      }
+
+      // ログインユーザーの場合、既に参加しているかチェック
+      if (user && !isGuest) {
+        const validation = await validateEventJoin(fetchedEvent.id, user.id);
+
+        if (!validation.canJoin && validation.errorCode === 'ALREADY_MEMBER') {
+          setEvent(fetchedEvent);
+          setError('既にこのイベントに参加しています');
+          setErrorType('already_joined');
+          setLoading(false);
+          return;
+        }
+      }
+
       setEvent(fetchedEvent);
       setLoading(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading event:', err);
-      setError('イベントの読み込みに失敗しました');
+      const isNetwork = /network|fetch|timeout|connection/i.test(err.message || '');
+      setError(isNetwork ? CONTEXT_ERRORS.NETWORK_ERROR : 'イベントの読み込みに失敗しました');
+      setErrorType(isNetwork ? 'network' : 'general');
       setLoading(false);
     }
   };
@@ -82,11 +111,48 @@ export default function JoinEventScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      await addEventMember({
+      const result = await addEventMember({
         eventId: event.id,
         userId: user.id,
         role: 'member',
       });
+
+      // エラーがあった場合
+      if (result.error) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+        // エラーコードに応じたメッセージ
+        let errorMessage = '参加に失敗しました';
+        let canGoToEvent = false;
+
+        switch (result.errorCode) {
+          case 'ALREADY_MEMBER':
+            errorMessage = '既にこのイベントに参加しています';
+            canGoToEvent = true;
+            break;
+          case 'EVENT_ALREADY_ENDED':
+            errorMessage = 'このイベントは既に終了しています';
+            break;
+          case 'EVENT_NOT_FOUND':
+            errorMessage = 'イベントが見つかりません';
+            break;
+          default:
+            errorMessage = result.error.message || '参加に失敗しました';
+        }
+
+        if (canGoToEvent) {
+          Alert.alert('お知らせ', errorMessage, [
+            { text: 'キャンセル', style: 'cancel' },
+            {
+              text: 'イベントを見る',
+              onPress: () => router.replace(`/(tabs)/events/${event.id}`),
+            },
+          ]);
+        } else {
+          Alert.alert('エラー', errorMessage);
+        }
+        return;
+      }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -96,9 +162,17 @@ export default function JoinEventScreen() {
           onPress: () => router.replace(`/(tabs)/events/${event.id}`),
         },
       ]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error joining event:', err);
-      Alert.alert('エラー', '参加に失敗しました。もう一度お試しください。');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      const isNetwork = /network|fetch|timeout|connection/i.test(err.message || '');
+      Alert.alert(
+        'エラー',
+        isNetwork
+          ? 'ネットワークに接続できません。接続状況をご確認ください'
+          : '参加に失敗しました。もう一度お試しください。'
+      );
     } finally {
       setJoining(false);
     }
@@ -119,15 +193,86 @@ export default function JoinEventScreen() {
     );
   }
 
+  // 終了イベントの場合
+  if (errorType === 'ended' && event) {
+    return (
+      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <View className="flex-1 items-center justify-center px-6">
+          <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <Feather name="calendar" size={40} color="#6b7280" />
+          </View>
+          <Text className={`text-xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            イベント終了
+          </Text>
+          <Text className={`text-lg font-semibold text-center mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            {event.title}
+          </Text>
+          <Text className={`text-center mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            このイベントは既に終了しています
+          </Text>
+          <Text className={`text-sm text-center mb-6 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            終了日時: {dayjs(event.endedAt).format('M月D日 (ddd) HH:mm')}
+          </Text>
+          <View className="space-y-3 w-full max-w-xs">
+            <Button
+              title="ホームに戻る"
+              onPress={handleCancel}
+              fullWidth
+              variant="primary"
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // 既に参加済みの場合
+  if (errorType === 'already_joined' && event) {
+    return (
+      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <View className="flex-1 items-center justify-center px-6">
+          <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-green-900/30' : 'bg-green-100'}`}>
+            <Feather name="check-circle" size={40} color="#22c55e" />
+          </View>
+          <Text className={`text-xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            参加済み
+          </Text>
+          <Text className={`text-lg font-semibold text-center mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            {event.title}
+          </Text>
+          <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            既にこのイベントに参加しています
+          </Text>
+          <View className="space-y-3 w-full max-w-xs">
+            <Button
+              title="イベントを見る"
+              onPress={() => router.replace(`/(tabs)/events/${event.id}`)}
+              fullWidth
+              variant="primary"
+            />
+            <Button
+              title="ホームに戻る"
+              onPress={handleCancel}
+              fullWidth
+              variant="outline"
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // 一般エラー（イベントが見つからない、ネットワークエラーなど）
   if (error || !event) {
+    const isNetworkErr = errorType === 'network';
     return (
       <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <View className="flex-1 items-center justify-center px-6">
           <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-red-900/30' : 'bg-red-100'}`}>
-            <Feather name="alert-circle" size={40} color="#ef4444" />
+            <Feather name={isNetworkErr ? 'wifi-off' : 'alert-circle'} size={40} color={isNetworkErr ? '#6b7280' : '#ef4444'} />
           </View>
           <Text className={`text-xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            エラー
+            {isNetworkErr ? 'オフライン' : 'エラー'}
           </Text>
           <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             {error || 'イベントが見つかりませんでした'}
@@ -211,16 +356,19 @@ export default function JoinEventScreen() {
                     icon="clock"
                     label="開始日時"
                     value={dayjs(event.startedAt).format('M月D日 (ddd) HH:mm')}
+                    isDark={isDark}
                   />
                   <InfoRow
                     icon={ruleInfo.icon}
                     label="記録ルール"
                     value={`${ruleInfo.name} - ${ruleInfo.description}`}
+                    isDark={isDark}
                   />
                   <InfoRow
                     icon="link"
                     label="招待コード"
                     value={event.inviteCode}
+                    isDark={isDark}
                   />
                 </View>
               </View>
@@ -270,17 +418,19 @@ function InfoRow({
   icon,
   label,
   value,
+  isDark,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   value: string;
+  isDark?: boolean;
 }) {
   return (
     <View className="flex-row items-start">
-      <Feather name={icon} size={18} color="#6b7280" style={{ marginRight: 8 }} />
+      <Feather name={icon} size={18} color={isDark ? '#9ca3af' : '#6b7280'} style={{ marginRight: 8 }} />
       <View className="flex-1">
-        <Text className="text-xs text-gray-500">{label}</Text>
-        <Text className="text-sm font-semibold text-gray-900 mt-0.5">
+        <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</Text>
+        <Text className={`text-sm font-semibold mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           {value}
         </Text>
       </View>

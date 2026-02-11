@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import NetInfo from '@react-native-community/netinfo';
-import { getPendingEventDrinkLogs, getPendingCount } from '@/lib/storage/eventDrinkLogs';
+import { getPendingEventDrinkLogs, getPendingCount, getFailedCount } from '@/lib/storage/eventDrinkLogs';
 import { getPendingSyncLogs } from '@/lib/storage/personalLogs';
 import { syncAllPendingData, SyncResult, startAutoSync, stopAutoSync } from '@/lib/sync';
 
@@ -11,6 +11,7 @@ interface SyncState {
   isOnline: boolean;
   pendingPersonalLogs: number;
   pendingEventLogs: number;
+  failedEventLogs: number;  // 失敗して復旧待ちのログ数
   lastSyncAt: string | null;
   lastSyncResult: SyncResult | null;
   error: string | null;
@@ -27,6 +28,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   isOnline: true,
   pendingPersonalLogs: 0,
   pendingEventLogs: 0,
+  failedEventLogs: 0,
   lastSyncAt: null,
   lastSyncResult: null,
   error: null,
@@ -69,14 +71,16 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 
   refreshPendingCounts: async () => {
     try {
-      const [personalLogs, eventCount] = await Promise.all([
+      const [personalLogs, eventCount, failedCount] = await Promise.all([
         getPendingSyncLogs(),
         getPendingCount(),
+        getFailedCount(),
       ]);
 
       set({
         pendingPersonalLogs: personalLogs.length,
         pendingEventLogs: eventCount,
+        failedEventLogs: failedCount,
       });
     } catch (error) {
       console.error('[SyncStore] Error refreshing pending counts:', error);
