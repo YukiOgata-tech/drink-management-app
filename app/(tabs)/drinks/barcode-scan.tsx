@@ -201,7 +201,7 @@ export default function BarcodeScanScreen() {
               </Text>
               <View style={styles.buttonGroup}>
                 <Button
-                  title="カメラを許可"
+                  title="次へ"
                   onPress={requestPermission}
                   fullWidth
                   variant="primary"

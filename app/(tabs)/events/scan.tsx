@@ -71,7 +71,7 @@ export default function ScanScreen() {
               </Text>
               <View style={styles.buttonContainer}>
                 <Button
-                  title="カメラを許可"
+                  title="次へ"
                   onPress={requestPermission}
                   fullWidth
                   variant="primary"
