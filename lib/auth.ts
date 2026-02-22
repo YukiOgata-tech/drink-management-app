@@ -25,7 +25,7 @@ export async function signUp(
       email,
       password,
       options: {
-        emailRedirectTo: 'drinkmanagement://auth/callback',
+        emailRedirectTo: 'https://make-it-tech.com/apps/drink-management/auth-callback',
         data: {
           display_name: displayName,
         },
@@ -173,7 +173,7 @@ export async function getCurrentSession() {
 export async function resetPassword(email: string): Promise<{ error: AuthError | null }> {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'drinkmanagement://auth/callback',
+      redirectTo: 'https://make-it-tech.com/apps/drink-management/auth-callback',
     });
 
     if (error) {
@@ -262,7 +262,7 @@ export async function resendConfirmationEmail(email: string): Promise<{ error: A
       type: 'signup',
       email: email,
       options: {
-        emailRedirectTo: 'drinkmanagement://auth/callback',
+        emailRedirectTo: 'https://make-it-tech.com/apps/drink-management/auth-callback',
       },
     });
 
@@ -285,7 +285,7 @@ export async function updateEmail(newEmail: string): Promise<{ error: AuthError 
     const { error } = await supabase.auth.updateUser({
       email: newEmail,
     }, {
-      emailRedirectTo: 'drinkmanagement://auth/callback',
+      emailRedirectTo: 'https://make-it-tech.com/apps/drink-management/auth-callback',
     });
 
     if (error) {

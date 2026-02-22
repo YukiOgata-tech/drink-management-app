@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>認証完了 - DrinkManagement</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      padding: 48px 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 36px;
+    }
+    .icon-success {
+      background: #ecfdf5;
+    }
+    .icon-loading {
+      background: #f0f9ff;
+    }
+    .icon-error {
+      background: #fef2f2;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 15px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    .open-app-btn {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 14px 32px;
+      background: #0ea5e9;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .open-app-btn:hover {
+      background: #0284c7;
+    }
+    .open-app-btn:active {
+      background: #0369a1;
+    }
+    .hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .spinner {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- ローディング状態 -->
+  <div class="card" id="loading-state">
+    <div class="icon icon-loading">
+      <span class="spinner">&#9696;</span>
+    </div>
+    <h1>認証を処理中...</h1>
+    <p>しばらくお待ちください</p>
+  </div>
+
+  <!-- 成功状態 -->
+  <div class="card hidden" id="success-state">
+    <div class="icon icon-success">&#10003;</div>
+    <h1>認証が完了しました</h1>
+    <p>メールアドレスの確認が完了しました。</p>
+    <p>アプリに戻って利用を開始できます。</p>
+    <a id="open-app-link" class="open-app-btn" href="#">アプリを開く</a>
+    <p class="hint">自動的にアプリが開かない場合は、<br>上のボタンをタップしてください</p>
+  </div>
+
+  <!-- エラー状態 -->
+  <div class="card hidden" id="error-state">
+    <div class="icon icon-error">&#10007;</div>
+    <h1>認証に失敗しました</h1>
+    <p id="error-message">認証リンクが無効か、有効期限が切れています。</p>
+    <p>アプリから再度メール確認をお試しください。</p>
+    <a class="open-app-btn" href="drinkmanagement://auth/callback">アプリを開く</a>
+  </div>
+
+  <script>
+    (function() {
+      var loadingEl = document.getElementById('loading-state');
+      var successEl = document.getElementById('success-state');
+      var errorEl = document.getElementById('error-state');
+      var openAppLink = document.getElementById('open-app-link');
+
+      function showState(state) {
+        loadingEl.classList.add('hidden');
+        successEl.classList.add('hidden');
+        errorEl.classList.add('hidden');
+        state.classList.remove('hidden');
+      }
+
+      // URLのハッシュフラグメントまたはクエリパラメータからトークンを取得
+      var hash = window.location.hash.substring(1);
+      var search = window.location.search.substring(1);
+      var params = new URLSearchParams(hash || search);
+
+      var accessToken = params.get('access_token');
+      var refreshToken = params.get('refresh_token');
+      var errorCode = params.get('error');
+      var errorDescription = params.get('error_description');
+
+      // エラーチェック
+      if (errorCode) {
+        var errorMsg = document.getElementById('error-message');
+        if (errorDescription) {
+          errorMsg.textContent = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+        }
+        showState(errorEl);
+        return;
+      }
+
+      // トークンがない場合
+      if (!accessToken || !refreshToken) {
+        showState(errorEl);
+        return;
+      }
+
+      // ディープリンクを構築
+      var deepLink = 'drinkmanagement://auth/callback#access_token=' +
+        encodeURIComponent(accessToken) +
+        '&refresh_token=' + encodeURIComponent(refreshToken);
+
+      // トークンに含まれる他のパラメータも転送
+      var tokenType = params.get('token_type');
+      var expiresIn = params.get('expires_in');
+      var expiresAt = params.get('expires_at');
+      if (tokenType) deepLink += '&token_type=' + encodeURIComponent(tokenType);
+      if (expiresIn) deepLink += '&expires_in=' + encodeURIComponent(expiresIn);
+      if (expiresAt) deepLink += '&expires_at=' + encodeURIComponent(expiresAt);
+
+      // 成功状態を表示
+      openAppLink.href = deepLink;
+      showState(successEl);
+
+      // 自動的にアプリを開く
+      setTimeout(function() {
+        window.location.href = deepLink;
+      }, 500);
+    })();
+  </script>
+</body>
+</html>
