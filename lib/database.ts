@@ -198,6 +198,40 @@ export function canChangeDisplayName(displayNameChangedAt?: string): {
 }
 
 /**
+ * アバター画像をSupabase Storageにアップロードしてプロフィールを更新
+ */
+export async function uploadAvatar(
+  userId: string,
+  imageUri: string
+): Promise<{ url: string | null; error: DatabaseError | null }> {
+  try {
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    const ext = imageUri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
+    const filename = `${userId}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filename, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+
+    if (uploadError) {
+      return { url: null, error: { message: uploadError.message } };
+    }
+
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filename);
+
+    const { error: dbError } = await updateAvatar(userId, urlData.publicUrl);
+    if (dbError) {
+      return { url: null, error: dbError };
+    }
+
+    return { url: urlData.publicUrl, error: null };
+  } catch (err: any) {
+    return { url: null, error: { message: err.message || 'アップロードに失敗しました' } };
+  }
+}
+
+/**
  * アバターURLを更新
  */
 export async function updateAvatar(

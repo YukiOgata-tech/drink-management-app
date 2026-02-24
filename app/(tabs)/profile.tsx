@@ -8,7 +8,9 @@ import {
   Alert,
   Switch,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -19,7 +21,7 @@ import { useSyncStore } from '@/stores/sync';
 import { useThemeStore, ThemeMode } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 import { resendConfirmationEmail } from '@/lib/auth';
-import { calculateAge } from '@/lib/database';
+import { calculateAge, uploadAvatar } from '@/lib/database';
 import { getXPInfo, getXPToNextLevel } from '@/lib/xp';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -62,6 +64,7 @@ export default function ProfileScreen() {
   const xpInfo = React.useMemo(() => getXPInfo(totalXP, negativeXP), [totalXP, negativeXP]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [birthday, setBirthday] = useState(user?.profile.birthday || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerValue, setDatePickerValue] = useState(
@@ -125,6 +128,50 @@ export default function ProfileScreen() {
       setDatePickerValue(selectedDate);
       const formattedDate = selectedDate.toISOString().split('T')[0];
       setBirthday(formattedDate);
+    }
+  };
+
+  const handleChangeAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'アクセス許可が必要です',
+        'プロフィール写真を変更するには、写真ライブラリへのアクセスを許可してください。設定アプリから許可できます。'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    if (isGuest || !user) {
+      // ゲストはローカルのみ反映
+      useUserStore.setState((state) => ({
+        user: state.user ? { ...state.user, avatar: result.assets[0].uri } : null,
+      }));
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const { url, error } = await uploadAvatar(user.id, result.assets[0].uri);
+      if (error || !url) {
+        Alert.alert('エラー', error?.message || 'アップロードに失敗しました');
+        return;
+      }
+      // ローカルステートも更新
+      useUserStore.setState((state) => ({
+        user: state.user ? { ...state.user, avatar: url } : null,
+      }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -192,13 +239,17 @@ export default function ProfileScreen() {
         <ResponsiveContainer className={`px-6 py-8 ${isMd ? 'max-w-2xl' : ''}`}>
           {/* ヘッダー */}
           <View className="items-center mb-8">
-            <TouchableOpacity className="mb-4">
+            <TouchableOpacity className="mb-4" onPress={handleChangeAvatar} disabled={isUploadingAvatar}>
               <Image
                 source={{ uri: user.avatar }}
                 className="w-24 h-24 rounded-full border-4 border-primary-500"
               />
               <View className="absolute bottom-0 right-0 bg-primary-500 rounded-full w-8 h-8 items-center justify-center">
-                <Feather name="camera" size={16} color="#ffffff" />
+                {isUploadingAvatar ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Feather name="camera" size={16} color="#ffffff" />
+                )}
               </View>
             </TouchableOpacity>
             <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>

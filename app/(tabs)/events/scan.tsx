@@ -76,13 +76,6 @@ export default function ScanScreen() {
                   fullWidth
                   variant="primary"
                 />
-                <View style={styles.buttonSpacer} />
-                <Button
-                  title="戻る"
-                  onPress={() => router.back()}
-                  fullWidth
-                  variant="outline"
-                />
               </View>
             </Card>
           </Animated.View>

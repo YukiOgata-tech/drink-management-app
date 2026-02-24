@@ -181,14 +181,6 @@ export default function BarcodeScanScreen() {
   if (!permission.granted && mode === 'camera') {
     return (
       <SafeAreaView edges={['top']} style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <View style={styles.backButtonContent}>
-              <Feather name="arrow-left" size={16} color="#0284c7" />
-              <Text style={styles.backButtonText}>戻る</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
         <View style={styles.centerContent}>
           <Animated.View entering={FadeIn.duration(300)}>
             <Card variant="elevated" style={styles.permissionCard}>
