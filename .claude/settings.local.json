@@ -27,7 +27,11 @@
       "mcp__plugin_supabase_supabase__list_projects",
       "mcp__plugin_supabase_supabase__execute_sql",
       "mcp__plugin_supabase_supabase__list_migrations",
-      "mcp__plugin_supabase_supabase__list_tables"
+      "mcp__plugin_supabase_supabase__list_tables",
+      "Bash(npm -v)",
+      "Bash(npx expo *)",
+      "Bash(npm audit *)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

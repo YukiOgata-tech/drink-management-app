@@ -101,7 +101,8 @@ export default function RootLayout() {
       if (data?.eventId) {
         router.push(`/(tabs)/events/${data.eventId}`);
       } else if (data?.screen) {
-        router.push(data.screen as string);
+        // 通知ペイロード由来の動的パス（型付きルート外）のため any でキャスト
+        router.push(data.screen as any);
       }
     });
 

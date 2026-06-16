@@ -46,7 +46,7 @@ export default function HomeScreen() {
       loadPersonalLogs();
 
       if (user && !isGuest) {
-        fetchEvents();
+        fetchEvents(user.id);
       }
     }, [user, isGuest])
   );

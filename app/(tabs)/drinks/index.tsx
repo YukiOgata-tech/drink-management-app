@@ -47,7 +47,7 @@ export default function DrinksScreen() {
 
   // Undo toast state
   const [deletedLogInfo, setDeletedLogInfo] = useState<{ id: string; name: string } | null>(null);
-  const deleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const UNDO_TIMEOUT = 5000; // 5秒間Undo可能
 
   const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
@@ -160,14 +160,15 @@ export default function DrinksScreen() {
       id: `log-${Date.now()}`,
       userId: user.id,
       drinkId: selectedDrink.id,
+      drinkName: selectedDrink.name,
       ml: selectedDrink.ml,
       abv: selectedDrink.abv,
       pureAlcoholG: selectedDrink.pureAlcoholG,
       count,
+      recordedById: user.id,
       status: 'approved' as const,
       recordedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
     addDrinkLog(newLog);
