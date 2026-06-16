@@ -4,6 +4,18 @@
 
 このドキュメントは、飲み会記録アプリのデータベース設計の完全な仕様を記載しています。
 
+> ⚠️ **このDBは each-spirit.com と共有しています**
+>
+> - 接続先 Supabase プロジェクト: `ctwpnaizwsrffrkkbuig`（"each-spirit and drink-mgt"）
+> - 1つの Postgres を**スキーマで分離**して2つのアプリが共有しています:
+>   - **`public`** … 本アプリ（drink-management）専用。本ドキュメントが対象とするのはこのスキーマ。
+>   - **`es`** … each-spirit.com（Web）専用。本アプリは一切参照せず、変更もしない。
+> - 両スキーマ間に外部キー依存はなく独立しています（共通点は `auth.users` を共有する点のみ）。
+> - **破壊的操作の禁止**: `supabase/schema.sql` の `DROP TABLE ... CASCADE` 群やスキーマ全体の再実行は、共有・本番データが入った現環境では実行しないでください。スキーマ変更は追加マイグレーション（`supabase/migrations/`）で該当 DDL のみ適用します。
+>
+> `public` スキーマのテーブル（本ドキュメントで解説）:
+> `profiles` / `events` / `event_members` / `drink_logs` / `drink_log_approvals` / `memos` / `products` / `account_deletion_requests`
+
 ## 設計思想
 
 ### アプリの目的
@@ -250,6 +262,65 @@ CREATE TABLE public.memos (
 **RLS:**
 - 閲覧: 自分のメモ、またはイベント参加者
 - 追加・編集・削除: 本人のみ
+
+---
+
+### 7. products（公式ドリンクDB）
+
+アプリ内のドリンクカタログ（公式登録商品）。`lib/products.ts` / `stores/products.ts` から参照される。
+
+```sql
+CREATE TABLE public.products (
+  id TEXT PRIMARY KEY,                   -- 商品ID（文字列）
+  category TEXT NOT NULL,                -- DrinkCategory（beer, sake, wine など）
+  name TEXT NOT NULL,
+  brand TEXT NOT NULL,
+  manufacturer TEXT NOT NULL,
+  ml INTEGER NOT NULL,                   -- 容量 ml
+  abv NUMERIC NOT NULL,                  -- アルコール度数%
+  emoji TEXT NOT NULL,                   -- 表示用絵文字
+  jan_code TEXT,                         -- JANコード（任意）
+  price_range TEXT,                      -- 価格帯（任意）
+  notes TEXT,                            -- 備考（任意）
+  is_official BOOLEAN DEFAULT true,      -- 公式商品フラグ
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+**インデックス:** `category` / `manufacturer` / `name` にそれぞれ作成。
+
+**RLS:**
+- 閲覧: 全ユーザー（`SELECT USING (true)`）
+- 追加・更新・削除: ポリシー無し（= 一般ユーザーは書き込み不可、`service role` のみ投入・更新）
+
+---
+
+### 8. account_deletion_requests（アカウント削除リクエスト）
+
+アカウント削除の申請を管理者承認フローで処理するためのテーブル。
+
+```sql
+CREATE TABLE public.account_deletion_requests (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL UNIQUE,          -- 1ユーザーにつき1リクエスト
+  status TEXT NOT NULL DEFAULT 'pending',-- pending/approved/completed/cancelled
+  reason TEXT,                           -- ユーザーが入力した削除理由（任意）
+  requested_at TIMESTAMP WITH TIME ZONE, -- 申請日時
+  processed_at TIMESTAMP WITH TIME ZONE, -- 管理者が処理した日時
+  admin_note TEXT,                       -- 管理者のメモ
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+**ステータス:**
+- `pending`: 申請中
+- `approved`: 承認済み
+- `completed`: 削除完了
+- `cancelled`: キャンセル
+
+**制約:** `user_id` に UNIQUE（1ユーザーにつきアクティブなリクエストは1つ）
 
 ---
 

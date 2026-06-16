@@ -2,11 +2,23 @@
 
 このディレクトリには、Drink Management Appのデータベーススキーマとセキュリティポリシーが含まれています。
 
+> ⚠️ **このDBは each-spirit.com と共有しています（本番・共有環境）**
+>
+> - 接続先プロジェクト: `ctwpnaizwsrffrkkbuig`（"each-spirit and drink-mgt"）
+> - `public` スキーマ … 本アプリ専用 / `es` スキーマ … each-spirit.com 専用（**触らない**）
+> - `schema.sql` 冒頭の `DROP TABLE ... CASCADE` と「リセットのための再実行」は
+>   **新規プロジェクト初期化専用**。本番データが入った共有DBでは実行しないこと。
+> - スキーマ変更は `migrations/` に追加ファイルを書いて該当 DDL のみ適用する。
+
 ## ファイル構成
 
-- `schema.sql` - テーブル定義とトリガー
+- `schema.sql` - テーブル定義とトリガー（`public` スキーマ、`products` 含む全8テーブル）
 - `rls.sql` - Row Level Security (RLS) ポリシー
+- `migrations/` - 後から適用した追加マイグレーション（`add_account_deletion_requests.sql` / `add_display_name_changed_at.sql`）
+- `fix_event_invite.sql` - イベント招待まわりの修正SQL
 - `README.md` - このファイル
+
+> 注意: Supabase側のマイグレーション履歴テーブルは空です（これまで SQL Editor で手動適用してきたため）。`migrations/` のファイルは記録・再現用であり、自動適用される保証はありません。
 
 ## セットアップ手順
 
@@ -36,7 +48,10 @@
 - ✅ `public.events` - イベント情報
 - ✅ `public.event_members` - イベント参加者
 - ✅ `public.drink_logs` - 飲酒記録
+- ✅ `public.drink_log_approvals` - 承認記録（consensusモード）
 - ✅ `public.memos` - メモ
+- ✅ `public.products` - 公式ドリンクDB
+- ✅ `public.account_deletion_requests` - アカウント削除リクエスト
 
 ## テーブル概要
 
@@ -49,12 +64,16 @@
 | id | UUID | auth.usersのIDと同一（主キー） |
 | email | TEXT | メールアドレス |
 | display_name | TEXT | 表示名 |
+| display_name_changed_at | TIMESTAMP | 表示名最終変更日時（1日1回制限用） |
 | avatar | TEXT | アバターURL（オプション） |
-| age | INTEGER | 年齢（オプション） |
+| birthday | DATE | 誕生日（年齢計算用、オプション。※旧 age INTEGER から変更済み） |
 | height | INTEGER | 身長 cm（オプション） |
 | weight | INTEGER | 体重 kg（オプション） |
 | gender | TEXT | 性別: 'male', 'female', 'other'（オプション） |
 | bio | TEXT | 自己紹介（オプション） |
+| total_xp | INTEGER | 累計経験値（デフォルト0） |
+| level | INTEGER | 現在レベル（デフォルト1） |
+| negative_xp | INTEGER | 借金XP（削除時に蓄積、次回付与時に相殺、デフォルト0） |
 | created_at | TIMESTAMP | 作成日時 |
 | updated_at | TIMESTAMP | 更新日時 |
 
@@ -98,6 +117,7 @@
 | user_id | UUID | ユーザーID（複合主キー） |
 | role | TEXT | 役割: 'host', 'manager', 'member' |
 | joined_at | TIMESTAMP | 参加日時 |
+| left_at | TIMESTAMP | 途中離脱時刻（NULL=参加中） |
 
 **役割:**
 - **host**: イベント作成者（全権限）
@@ -227,10 +247,15 @@ CREATE TRIGGER update_profiles_updated_at
 
 ## 開発環境でのリセット
 
-開発中にデータベースをリセットしたい場合：
+> ⚠️ **共有・本番DB（`ctwpnaizwsrffrkkbuig`）では絶対に実行しないでください。**
+> 下記は「使い捨ての新規開発プロジェクト」専用です。`schema.sql` の `DROP TABLE ... CASCADE`
+> により `public` 側の実データが全て消えます（`es` 側は影響を受けませんが、本アプリのデータは失われます）。
+> 既存環境を変更したい場合は `migrations/` に追加マイグレーションを書いて該当 DDL のみ適用してください。
+
+新規・使い捨ての開発プロジェクトをリセットしたい場合のみ：
 
 ```sql
--- 全テーブルを削除して再作成
+-- 全テーブルを削除して再作成（⚠️ 新規プロジェクト専用）
 \i schema.sql
 \i rls.sql
 ```

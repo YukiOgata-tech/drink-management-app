@@ -2,6 +2,16 @@
 
 このガイドでは、Supabaseでデータベースをセットアップし、アプリと連携する手順を説明します。
 
+> ⚠️ **このガイドは「新規プロジェクトをゼロから初期化する」場合の手順です。**
+>
+> 現行の本番環境（Supabase プロジェクト `ctwpnaizwsrffrkkbuig` / "each-spirit and drink-mgt"）は、
+> **each-spirit.com と1つの Postgres を共有**しており、すでに本番データが入っています。
+> - `public` スキーマ … 本アプリ専用 / `es` スキーマ … each-spirit.com 専用（触らない）
+> - **この共有DBに対して `schema.sql` をそのまま再実行しないでください。** 冒頭の
+>   `DROP TABLE ... CASCADE` で `public` 側の実データが消えます（`es` 側は無事ですが）。
+> - 既存環境へのスキーマ変更は、`supabase/migrations/` に追加マイグレーションを書いて
+>   該当 DDL のみを SQL Editor で適用してください。
+
 ## 前提条件
 
 - ✅ Supabaseプロジェクトが作成済み
@@ -52,12 +62,15 @@
 1. **Table Editorを開く**
    - 左サイドバーから **Table Editor** をクリック
 
-2. **作成されたテーブルを確認**
+2. **作成されたテーブルを確認**（`public` スキーマ）
    - ✅ `profiles` - ユーザープロフィール
    - ✅ `events` - イベント情報
    - ✅ `event_members` - イベント参加者
    - ✅ `drink_logs` - 飲酒記録
+   - ✅ `drink_log_approvals` - 承認記録（consensusモード）
    - ✅ `memos` - メモ
+   - ✅ `products` - 公式ドリンクDB
+   - ✅ `account_deletion_requests` - アカウント削除リクエスト
 
 ### ステップ4: アプリでの動作確認
 
@@ -91,12 +104,17 @@ CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id),
   email TEXT NOT NULL,
   display_name TEXT NOT NULL,
+  display_name_changed_at TIMESTAMP WITH TIME ZONE, -- 表示名最終変更日時（1日1回制限用）
   avatar TEXT,
-  age INTEGER,
+  birthday DATE,   -- 誕生日（年齢計算用。※旧 age INTEGER から変更済み）
   height INTEGER,  -- cm
   weight INTEGER,  -- kg
   gender TEXT,     -- 'male', 'female', 'other'
   bio TEXT,
+  -- XP/レベル関連
+  total_xp INTEGER NOT NULL DEFAULT 0,    -- 累計経験値
+  level INTEGER NOT NULL DEFAULT 1,       -- 現在レベル
+  negative_xp INTEGER NOT NULL DEFAULT 0, -- 借金XP（削除時に蓄積、次回付与時に相殺）
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -274,7 +292,8 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 データベースレベルでバリデーションを実施しています。
 
 ```sql
-age INTEGER CHECK (age > 0 AND age < 150)
+height INTEGER CHECK (height > 0 AND height < 300)
+weight INTEGER CHECK (weight > 0 AND weight < 500)
 abv NUMERIC(5, 2) CHECK (abv >= 0 AND abv <= 100)
 ```
 

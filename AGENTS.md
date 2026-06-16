@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## プロジェクト概要
 
@@ -179,19 +179,8 @@ drink-management/
 **注意:** 以前使用していた`react-native-mmkv`はExpo SDK 54との互換性問題により削除されました。
 
 ### データベース (Supabase)
-
-> ⚠️ **このSupabaseプロジェクトは each-spirit.com と共有しています**
-> - 接続先プロジェクト: `ctwpnaizwsrffrkkbuig`（"each-spirit and drink-mgt"、リージョン ap-northeast-2）
-> - 1つの Postgres を**スキーマで分離**して2アプリが共有:
->   - **`public`** スキーマ … 本アプリ（drink-management）専用
->   - **`es`** スキーマ … each-spirit.com（Web）専用。**本アプリからは絶対に触らない・参照しない**
-> - 両スキーマ間に外部キー依存はなく独立（共通点は `auth.users` を共有する点のみ）。
-> - **破壊的操作の禁止**: `supabase/schema.sql` 冒頭の `DROP TABLE ... CASCADE` や「schema.sql再実行によるリセット」は新規プロジェクト初期化専用。共有・本番データが入った現環境では実行しないこと（`public`側の実データが消える）。スキーマ変更は `supabase/migrations/` に追加マイグレーションを書いて該当DDLだけを適用する。
-> - 注意: Supabase側のマイグレーション履歴テーブルは空（これまでSQL Editorで手動適用してきたため）。`supabase/migrations/` のファイルは記録用であり、自動適用される保証はない。
-
-- スキーマとRLSポリシーは`supabase/schema.sql`と`supabase/rls.sql`で定義（いずれも`public`スキーマ対象）
-- `public`スキーマのテーブル: `profiles`, `events`, `event_members`, `drink_logs`, `drink_log_approvals`, `memos`, `products`, `account_deletion_requests`
-- ストレージ: `avatars` バケット（public）が存在（`docs/create_avatars_bucket.sql`）
+- スキーマとRLSポリシーは`supabase/schema.sql`と`supabase/rls.sql`で定義
+- テーブル: `profiles`, `events`, `event_members`, `drink_logs`, `drink_log_approvals`, `memos`, `products`
 - プロフィール自動作成トリガー: 新規認証ユーザーは自動的にプロフィール行が作成される
 - 承認自動処理トリガー: Consensusモードで必要数の承認が集まったら自動的にapprovedに変更
 - RLS: ユーザーは自分のデータとイベント参加者のデータのみ閲覧可能
