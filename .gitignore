@@ -42,3 +42,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Claude Code のユーザー個別ローカル設定（追跡しない）
+.claude/settings.local.json
