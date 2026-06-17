@@ -31,7 +31,24 @@
       "Bash(npm -v)",
       "Bash(npx expo *)",
       "Bash(npm audit *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(xcode-select -p)",
+      "Bash(xcrun simctl *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -H \"User-Agent: DrinkManagementApp/1.0 \\(contact@example.com\\)\" \"https://world.openfoodfacts.org/api/v2/product/4901004008118.json\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://world.openfoodfacts.org/api/v2/product/4901004008118.json\")",
+      "Bash(curl -s -H \"User-Agent: DrinkManagementApp/1.0 \\(contact@example.com\\)\" \"https://world.openfoodfacts.org/api/v2/product/4901004008118.json\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -H \"User-Agent: DrinkManagementApp/1.0 \\(contact@example.com\\)\" \"https://world.openfoodfacts.org/api/v2/product/3017620422003.json\")",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" -H \"User-Agent: DrinkManagementApp/1.0 \\(contact@example.com\\)\" \"https://world.openfoodfacts.org/api/v2/product/4901880026950.json\")",
+      "Bash(sed -i '' 's/^EXPO_PUBLIC_RAKUTEN_APP_ID=/EXPO_PUBLIC_YAHOO_APP_ID=/' .env)",
+      "Bash(awk -F= '/^EXPO_PUBLIC_YAHOO_APP_ID=/{v=$0; sub\\(/^[^=]*=/,\"\",v\\); printf \"EXPO_PUBLIC_YAHOO_APP_ID = [値の長さ:%d]\\\\n\", length\\(v\\)} /^EXPO_PUBLIC_RAKUTEN/{print \"RAKUTEN キーがまだ残存\"}' .env)",
+      "Bash(sed -n '/export interface UserProfile\\\\b/,/^}/p' types/index.ts)",
+      "Bash(sed -n '/export interface UserXP\\\\b/,/^}/p' types/index.ts)",
+      "mcp__plugin_supabase_supabase__get_organization",
+      "mcp__plugin_supabase_supabase__list_extensions",
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(cd *)",
+      "Bash(python3 -)"
     ]
   }
 }

@@ -8,15 +8,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Button, Card, ProgressRing, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
 import { EndedEventBanner } from '@/components/event';
 import { useUserStore } from '@/stores/user';
-import { useDrinksStore } from '@/stores/drinks';
 import { useEventsStore } from '@/stores/events';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
-import { useDevStore } from '@/stores/dev';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
+import { getXPInfo, getXPToNextLevel } from '@/lib/xp';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import dayjs from 'dayjs';
@@ -30,10 +30,9 @@ export default function HomeScreen() {
   const isGuest = useUserStore((state) => state.isGuest);
   const events = useEventsStore((state) => state.events);
   const fetchEvents = useEventsStore((state) => state.fetchEvents);
-  const isDummyDataEnabled = useDevStore((state) => state.isDummyDataEnabled);
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
-  const { isTablet, isMd } = useResponsive();
+  const { isMd } = useResponsive();
 
   // 個人記録ストア
   const personalLogs = usePersonalLogsStore((state) => state.logs);
@@ -42,9 +41,7 @@ export default function HomeScreen() {
   // 画面がフォーカスされるたびにデータを再取得
   useFocusEffect(
     useCallback(() => {
-      // 個人記録を読み込み（ゲスト・認証ユーザー共通）
       loadPersonalLogs();
-
       if (user && !isGuest) {
         fetchEvents(user.id);
       }
@@ -53,233 +50,311 @@ export default function HomeScreen() {
 
   if (!user) return null;
 
-  // 今日の個人記録をフィルタリング（削除済みを除外）
+  // 今日の個人記録（削除済みを除外）
   const today = dayjs().format('YYYY-MM-DD');
   const todayPersonalLogs = personalLogs.filter(
     (log) => dayjs(log.recordedAt).format('YYYY-MM-DD') === today && !log.deletedAt
   );
 
-  // 今日の合計純アルコール量と杯数
   const totalPureAlcohol = todayPersonalLogs.reduce(
     (sum, log) => sum + log.pureAlcoholG * log.count,
     0
   );
-  const totalCount = todayPersonalLogs.reduce(
-    (sum, log) => sum + log.count,
-    0
-  );
+  const totalCount = todayPersonalLogs.reduce((sum, log) => sum + log.count, 0);
 
-  // 最新のイベント3件を取得（開始日時の降順でソート）
+  // 適正量と進捗
+  const dailyLimit = user.profile.gender === 'female' ? 10 : 20;
+  const limitPct = dailyLimit > 0 ? (totalPureAlcohol / dailyLimit) * 100 : 0;
+  const overLimit = totalPureAlcohol > dailyLimit;
+  const ringColor = limitPct >= 100 ? '#ef4444' : limitPct >= 80 ? '#f59e0b' : '#10b981';
+  const ringTrack = isDark ? '#374151' : '#e5e7eb';
+
+  // XP / レベル
+  const totalXP = user.profile.totalXP ?? 0;
+  const negativeXP = user.profile.negativeXP ?? 0;
+  const xpInfo = getXPInfo(totalXP, negativeXP);
+  const xpToNext = getXPToNextLevel(totalXP);
+
+  // 最新イベント3件
   const recentEvents = [...events]
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     .slice(0, 3);
 
+  const textMain = isDark ? 'text-white' : 'text-gray-900';
+  const textSub = isDark ? 'text-gray-400' : 'text-gray-500';
+
   return (
     <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      {/* オフライン/同期ステータスバナー */}
       <SyncStatusBanner />
-
-      {/* 終了イベント通知バナー */}
       <EndedEventBanner />
 
       <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingBottom: 100, alignItems: isMd ? 'center' : undefined }}
-        >
-        <ResponsiveContainer className={`px-6 py-8 ${isMd ? 'max-w-4xl' : ''}`}>
-          {/* ヘッダー */}
-          <View className="mb-8">
-            <Text className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isMd ? 'text-4xl' : 'text-3xl'}`}>
-              おかえりなさい、{user.displayName.split(' ')[0]}さん
-            </Text>
-            <Text className={`mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'} ${isMd ? 'text-base' : 'text-sm'}`}>
-              {dayjs().format('YYYY年M月D日 (ddd)')}
-            </Text>
-          </View>
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 100, alignItems: isMd ? 'center' : undefined }}
+        showsVerticalScrollIndicator={false}
+      >
+        <ResponsiveContainer className={`px-5 pt-3 ${isMd ? 'max-w-3xl' : ''}`}>
+          {/* ===== ヒーロー（グラデーション） ===== */}
+          <Animated.View entering={FadeInDown.duration(500)}>
+            <LinearGradient
+              colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 28, padding: 22 }}
+            >
+              <View className="flex-row items-start justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-white/80 text-xs font-medium">
+                    {dayjs().format('YYYY年M月D日 (ddd)')}
+                  </Text>
+                  <Text className="text-white text-2xl font-bold mt-1.5" numberOfLines={1}>
+                    おかえりなさい
+                  </Text>
+                  <Text className="text-white text-2xl font-bold" numberOfLines={1}>
+                    {user.displayName.split(' ')[0]} さん
+                  </Text>
+                </View>
 
-          {/* 今日の記録サマリ */}
-          <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <Card variant="elevated" className="mb-6">
-              <View className="flex-row items-center mb-4">
-                <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  今日の記録
-                </Text>
-                <View className="ml-2">
-                  <Feather name="bar-chart-2" size={18} color="#0ea5e9" />
+                {/* レベルバッジ */}
+                <View
+                  className="items-center justify-center rounded-2xl px-4 py-3"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}
+                >
+                  <Text className="text-white/80 text-[10px] font-semibold tracking-wider">LEVEL</Text>
+                  <Text className="text-white text-2xl font-extrabold leading-7">{xpInfo.level}</Text>
                 </View>
               </View>
-              <View className="flex-row justify-around">
-                <View className={`items-center rounded-xl px-6 py-4 ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}>
-                  <Text className="text-4xl font-bold text-primary-600">
-                    {totalCount}
+
+              {/* XPプログレス */}
+              <View className="mt-5">
+                <View className="flex-row items-center justify-between mb-1.5">
+                  <Text className="text-white/90 text-xs font-semibold">
+                    {isGuest ? 'ゲストモード' : `経験値 ${totalXP.toLocaleString()} XP`}
                   </Text>
-                  <Text className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>杯</Text>
+                  <Text className="text-white/70 text-[11px]">
+                    {isGuest ? 'ログインで記録を保存' : `次のレベルまで ${xpToNext.toLocaleString()} XP`}
+                  </Text>
                 </View>
-                <View className={`items-center rounded-xl px-6 py-4 ${isDark ? 'bg-primary-900/30' : 'bg-primary-50'}`}>
-                  <Text className="text-4xl font-bold text-primary-600">
+                <View
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
+                >
+                  <View
+                    className="h-2 rounded-full"
+                    style={{ width: `${Math.max(4, xpInfo.progress)}%`, backgroundColor: '#ffffff' }}
+                  />
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
+          {/* ===== 今日の記録（円形プログレス） ===== */}
+          <Animated.View entering={FadeInDown.delay(100).duration(500)} className="mt-5">
+            <Card variant="elevated">
+              <View className="flex-row items-center mb-4">
+                <Feather name="activity" size={18} color={ringColor} />
+                <Text className={`text-base font-bold ml-2 ${textMain}`}>今日の記録</Text>
+              </View>
+
+              <View className="flex-row items-center">
+                <ProgressRing
+                  progress={limitPct}
+                  size={116}
+                  strokeWidth={11}
+                  color={ringColor}
+                  trackColor={ringTrack}
+                >
+                  <Text className={`text-2xl font-extrabold ${textMain}`}>
                     {totalPureAlcohol.toFixed(1)}
                   </Text>
-                  <Text className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    g (純アルコール)
+                  <Text className={`text-[10px] ${textSub}`}>g 純アルコール</Text>
+                </ProgressRing>
+
+                <View className="flex-1 ml-5">
+                  {/* 杯数 */}
+                  <View className="flex-row items-baseline">
+                    <Text className={`text-3xl font-extrabold ${textMain}`}>{totalCount}</Text>
+                    <Text className={`text-sm ml-1 ${textSub}`}>杯</Text>
+                  </View>
+
+                  {/* 適正量バッジ */}
+                  <View
+                    className="flex-row items-center self-start mt-2 px-2.5 py-1 rounded-full"
+                    style={{
+                      backgroundColor: overLimit
+                        ? (isDark ? 'rgba(239,68,68,0.18)' : '#fef2f2')
+                        : (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4'),
+                    }}
+                  >
+                    <Feather
+                      name={overLimit ? 'alert-triangle' : 'check-circle'}
+                      size={12}
+                      color={overLimit ? '#ef4444' : '#10b981'}
+                    />
+                    <Text
+                      className="text-[11px] font-semibold ml-1"
+                      style={{ color: overLimit ? '#ef4444' : '#10b981' }}
+                    >
+                      適正量 {dailyLimit}g / 日
+                    </Text>
+                  </View>
+
+                  <Text className={`text-xs mt-2 leading-4 ${textSub}`}>
+                    {overLimit
+                      ? '適正量を超えています。休肝日を設けましょう。'
+                      : totalCount === 0
+                        ? 'まだ今日の記録はありません。'
+                        : `適正量まで残り ${Math.max(0, dailyLimit - totalPureAlcohol).toFixed(1)}g`}
                   </Text>
                 </View>
               </View>
-
-              {user.profile.gender && (
-                <View className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    適正量: {user.profile.gender === 'male' ? '20g' : '10g'} / 日
-                  </Text>
-                  {totalPureAlcohol > (user.profile.gender === 'male' ? 20 : 10) && (
-                    <View className="flex-row items-center mt-1">
-                      <Feather name="alert-triangle" size={12} color="#dc2626" />
-                      <Text className="text-xs text-red-600 font-semibold ml-1">
-                        適正量を超えています。休肝日を設けましょう。
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
             </Card>
           </Animated.View>
 
-          {/* クイックアクション */}
-          <Animated.View entering={FadeInDown.delay(200).duration(600)}>
-            <View className="mb-6">
-              <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                クイックアクション
-              </Text>
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={() => router.push('/drinks')}
-                  className="flex-1 bg-primary-500 rounded-2xl p-4 items-center active:bg-primary-600"
+          {/* ===== クイックアクション ===== */}
+          <Animated.View entering={FadeInDown.delay(200).duration(500)} className="mt-5">
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => router.push('/drinks')}
+                activeOpacity={0.85}
+                className="flex-1"
+              >
+                <LinearGradient
+                  colors={['#0ea5e9', '#6366f1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ borderRadius: 20, padding: 16 }}
                 >
-                  <View className="w-12 h-12 bg-white/20 rounded-full items-center justify-center mb-2">
-                    <Feather name="plus-circle" size={28} color="#ffffff" />
+                  <View
+                    className="w-11 h-11 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.22)' }}
+                  >
+                    <Feather name="plus" size={24} color="#ffffff" />
                   </View>
-                  <Text className="text-white font-semibold">
-                    記録を追加
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => router.push('/events')}
-                  className="flex-1 bg-secondary-500 rounded-2xl p-4 items-center active:bg-secondary-600"
+                  <Text className="text-white font-bold text-base">記録を追加</Text>
+                  <Text className="text-white/75 text-xs mt-0.5">飲んだものを記録</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push('/events')}
+                activeOpacity={0.85}
+                className="flex-1"
+              >
+                <LinearGradient
+                  colors={['#8b5cf6', '#d946ef']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ borderRadius: 20, padding: 16 }}
                 >
-                  <View className="w-12 h-12 bg-white/20 rounded-full items-center justify-center mb-2">
-                    <Feather name="users" size={28} color="#ffffff" />
+                  <View
+                    className="w-11 h-11 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.22)' }}
+                  >
+                    <Feather name="users" size={22} color="#ffffff" />
                   </View>
-                  <Text className="text-white font-semibold">
-                    イベント
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  <Text className="text-white font-bold text-base">イベント</Text>
+                  <Text className="text-white/75 text-xs mt-0.5">みんなで記録</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </Animated.View>
 
-          {/* 直近のイベント */}
-          <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+          {/* ===== 直近のイベント ===== */}
+          <Animated.View entering={FadeInDown.delay(300).duration(500)} className="mt-6">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                直近のイベント
-              </Text>
-              <TouchableOpacity
-                onPress={() => router.push('/events')}
-                className="flex-row items-center"
-              >
-                <Text className="text-primary-600 font-semibold mr-1">
-                  すべて見る
-                </Text>
+              <Text className={`text-base font-bold ${textMain}`}>直近のイベント</Text>
+              <TouchableOpacity onPress={() => router.push('/events')} className="flex-row items-center">
+                <Text className="text-primary-500 font-semibold mr-1 text-sm">すべて見る</Text>
                 <Feather name="chevron-right" size={16} color="#0ea5e9" />
               </TouchableOpacity>
             </View>
 
             {recentEvents.length > 0 ? (
               <ResponsiveGrid minItemWidth={280} gap={12}>
-                {recentEvents.map((event, index) => (
-                  <Animated.View
-                    key={event.id}
-                    entering={FadeInDown.delay(350 + index * 50).duration(600)}
-                  >
-                    <TouchableOpacity
-                      onPress={() => router.push(`/(tabs)/events/${event.id}`)}
-                      activeOpacity={0.7}
+                {recentEvents.map((event, index) => {
+                  const ongoing = !event.endedAt;
+                  return (
+                    <Animated.View
+                      key={event.id}
+                      entering={FadeInDown.delay(350 + index * 60).duration(500)}
                     >
-                      <Card variant="outlined">
-                        <View className="flex-row items-center">
-                          <View className={`rounded-full w-12 h-12 items-center justify-center mr-3 ${isDark ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
-                            <Feather name="calendar" size={24} color="#0ea5e9" />
-                          </View>
-                          <View className="flex-1">
-                            <Text className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {event.title}
-                            </Text>
-                            <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {dayjs(event.startedAt).format('M月D日 (ddd) HH:mm')}
-                            </Text>
-                          </View>
-                          <View
-                            className={`px-3 py-1 rounded-full ${
-                              event.endedAt
-                                ? (isDark ? 'bg-gray-700' : 'bg-gray-100')
-                                : (isDark ? 'bg-green-900/30' : 'bg-green-100')
-                            }`}
-                          >
-                            <Text
-                              className={`text-xs font-semibold ${
-                                event.endedAt
-                                  ? (isDark ? 'text-gray-400' : 'text-gray-600')
-                                  : 'text-green-600'
-                              }`}
+                      <TouchableOpacity
+                        onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                        activeOpacity={0.7}
+                      >
+                        <Card variant="elevated">
+                          <View className="flex-row items-center">
+                            <View
+                              className="rounded-2xl w-12 h-12 items-center justify-center mr-3"
+                              style={{ backgroundColor: ongoing ? (isDark ? 'rgba(14,165,233,0.18)' : '#e0f2fe') : (isDark ? '#374151' : '#f3f4f6') }}
                             >
-                              {event.endedAt ? '終了' : '開催中'}
-                            </Text>
+                              <Feather name="calendar" size={22} color={ongoing ? '#0ea5e9' : (isDark ? '#9ca3af' : '#9ca3af')} />
+                            </View>
+                            <View className="flex-1">
+                              <Text className={`text-base font-semibold ${textMain}`} numberOfLines={1}>
+                                {event.title}
+                              </Text>
+                              <Text className={`text-sm mt-0.5 ${textSub}`}>
+                                {dayjs(event.startedAt).format('M月D日 (ddd) HH:mm')}
+                              </Text>
+                            </View>
+                            <View
+                              className="px-2.5 py-1 rounded-full flex-row items-center"
+                              style={{ backgroundColor: ongoing ? (isDark ? 'rgba(16,185,129,0.18)' : '#dcfce7') : (isDark ? '#374151' : '#f3f4f6') }}
+                            >
+                              {ongoing && (
+                                <View className="w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }} />
+                              )}
+                              <Text
+                                className="text-xs font-semibold"
+                                style={{ color: ongoing ? '#10b981' : (isDark ? '#9ca3af' : '#6b7280') }}
+                              >
+                                {ongoing ? '開催中' : '終了'}
+                              </Text>
+                            </View>
                           </View>
-                        </View>
-                      </Card>
-                    </TouchableOpacity>
-                  </Animated.View>
-                ))}
+                        </Card>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
               </ResponsiveGrid>
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-8">
                   <View className={`w-16 h-16 rounded-full items-center justify-center mb-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                    <Feather name="calendar" size={32} color={isDark ? '#6b7280' : '#9ca3af'} />
+                    <Feather name="calendar" size={30} color={isDark ? '#6b7280' : '#9ca3af'} />
                   </View>
-                  <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                    イベントがありません
-                  </Text>
-                  <Button
-                    title="イベントを作成"
-                    size="sm"
-                    onPress={() => router.push('/events')}
-                    className="mt-4"
-                  />
+                  <Text className={textSub}>イベントがありません</Text>
+                  <Button title="イベントを作成" size="sm" onPress={() => router.push('/events')} className="mt-4" />
                 </View>
               </Card>
             )}
           </Animated.View>
 
-          {/* 健康メッセージ */}
-          <Animated.View
-            entering={FadeInDown.delay(500).duration(600)}
-            className="mt-6"
-          >
-            <Card variant="outlined" className={isDark ? 'bg-amber-900/20 border-amber-700' : 'bg-amber-50 border-amber-200'}>
-              <View className="flex-row items-start">
-                <View className="mt-0.5 mr-3">
-                  <Feather name="info" size={20} color={isDark ? '#fbbf24' : '#b45309'} />
-                </View>
-                <View className="flex-1">
-                  <Text className={`text-sm font-semibold mb-1 ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
-                    適度な飲酒を心がけましょう
-                  </Text>
-                  <Text className={`text-xs leading-5 ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
-                    週に2日程度の休肝日を設けることが推奨されています。記録を見返して、自分の適量を把握しましょう。
-                  </Text>
-                </View>
+          {/* ===== 健康メッセージ ===== */}
+          <Animated.View entering={FadeInDown.delay(450).duration(500)} className="mt-6">
+            <View
+              className="flex-row items-start rounded-2xl p-4"
+              style={{
+                backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#fffbeb',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(245,158,11,0.3)' : '#fde68a',
+              }}
+            >
+              <View className="mt-0.5 mr-3">
+                <Feather name="info" size={20} color={isDark ? '#fbbf24' : '#b45309'} />
               </View>
-            </Card>
+              <View className="flex-1">
+                <Text className={`text-sm font-semibold mb-1 ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                  適度な飲酒を心がけましょう
+                </Text>
+                <Text className={`text-xs leading-5 ${isDark ? 'text-amber-200/80' : 'text-amber-800'}`}>
+                  週に2日程度の休肝日を設けることが推奨されています。記録を見返して、自分の適量を把握しましょう。
+                </Text>
+              </View>
+            </View>
           </Animated.View>
         </ResponsiveContainer>
       </ScrollView>

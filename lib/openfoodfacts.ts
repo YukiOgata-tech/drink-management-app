@@ -37,7 +37,7 @@ const CATEGORY_KEYWORDS: { keywords: string[]; category: DrinkCategory }[] = [
 /**
  * 商品名からカテゴリを推測
  */
-function guessCategory(name: string, brand?: string): DrinkCategory {
+export function guessCategory(name: string, brand?: string): DrinkCategory {
   const searchText = `${name} ${brand || ''}`.toLowerCase();
 
   for (const { keywords, category } of CATEGORY_KEYWORDS) {
@@ -55,7 +55,7 @@ function guessCategory(name: string, brand?: string): DrinkCategory {
  * 容量文字列をmlに変換
  * "350 ml", "350ml", "35cl" などを処理
  */
-function parseQuantity(quantity?: string): number | null {
+export function parseQuantity(quantity?: string): number | null {
   if (!quantity) return null;
 
   // ml を抽出
@@ -95,6 +95,17 @@ export async function fetchProductByBarcode(barcode: string): Promise<OpenFoodFa
         },
       }
     );
+
+    // Open Food Facts は DB に未登録の商品に対し HTTP 404 + {status:0} を返す。
+    // これは「APIエラー」ではなく「未登録（notFound）」として扱い、
+    // カスタムドリンク登録フローへ誘導する（日本の酒類はOFF未登録が大半）。
+    if (response.status === 404) {
+      return {
+        product: null,
+        error: null,
+        notFound: true,
+      };
+    }
 
     if (!response.ok) {
       return {

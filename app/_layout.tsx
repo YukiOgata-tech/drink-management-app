@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +15,7 @@ import { handleAuthCallback } from '@/lib/auth';
 import {
   isFirstPermissionRequest,
   requestNotificationPermission,
+  markPermissionRequested,
   getExpoPushToken,
   addNotificationResponseListener,
 } from '@/lib/notifications';
@@ -74,18 +75,19 @@ export default function RootLayout() {
     return cleanup;
   }, []);
 
-  // 初回起動時の通知許可チェック
+  // 初回起動時の通知許可チェック（セッション中1回だけ。userの更新で再実行しない）
+  const notifCheckedRef = useRef(false);
   useEffect(() => {
     const checkNotificationPermission = async () => {
-      // ユーザーがログインしている場合のみ通知許可を求める
-      if (user) {
-        const isFirst = await isFirstPermissionRequest();
-        if (isFirst) {
-          // 少し遅延させてからモーダルを表示
-          setTimeout(() => {
-            setShowNotificationModal(true);
-          }, 1500);
-        }
+      if (!user || notifCheckedRef.current) return;
+      notifCheckedRef.current = true; // 多重チェック・多重モーダルを防止
+
+      const isFirst = await isFirstPermissionRequest();
+      if (isFirst) {
+        // 少し遅延させてからモーダルを表示
+        setTimeout(() => {
+          setShowNotificationModal(true);
+        }, 1500);
       }
     };
 
@@ -120,8 +122,8 @@ export default function RootLayout() {
 
   const handleSkipNotification = async () => {
     setShowNotificationModal(false);
-    // スキップしても権限リクエスト済みフラグは立てる
-    await requestNotificationPermission();
+    // スキップ時はOSの許可ダイアログを出さず、「尋ねた」フラグだけ立てる
+    await markPermissionRequested();
   };
 
   // ディープリンクハンドラー

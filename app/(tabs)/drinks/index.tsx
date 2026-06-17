@@ -475,7 +475,7 @@ export default function DrinksScreen() {
               </ScrollView>
 
               {/* ドリンクリスト */}
-              <View className="space-y-2">
+              <View className="gap-y-2">
                 {filteredDrinks.map((drink) => (
                   <TouchableOpacity
                     key={drink.id}

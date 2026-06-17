@@ -1,3 +1,4 @@
+import * as WebBrowser from 'expo-web-browser';
 import { supabase } from './supabase';
 import { User } from '@/types';
 import { getUserWithProfile } from './database';
@@ -10,6 +11,109 @@ export interface AuthError {
 export interface AuthResponse {
   user: User | null;
   error: AuthError | null;
+}
+
+export interface OAuthResponse extends AuthResponse {
+  /** ユーザーが認証フローを途中で閉じた場合 true（エラーではない） */
+  cancelled?: boolean;
+}
+
+// OAuth 後にアプリへ戻るためのディープリンク（Supabaseの Redirect URLs に登録が必要）
+const OAUTH_REDIRECT_URL = 'drinkmanagement://auth/callback';
+
+/**
+ * Supabaseの認証ユーザーから、DBプロフィール込みの User を組み立てる
+ */
+async function buildUserFromSupabase(
+  supaUser: {
+    id: string;
+    email?: string | null;
+    email_confirmed_at?: string | null;
+    created_at?: string;
+    user_metadata?: Record<string, any>;
+  }
+): Promise<User> {
+  const { user: dbUser } = await getUserWithProfile(supaUser.id);
+  if (dbUser) {
+    return { ...dbUser, emailConfirmed: !!supaUser.email_confirmed_at };
+  }
+  const meta = supaUser.user_metadata ?? {};
+  return {
+    id: supaUser.id,
+    email: supaUser.email ?? '',
+    emailConfirmed: !!supaUser.email_confirmed_at,
+    displayName: meta.display_name || meta.full_name || meta.name || 'ユーザー',
+    avatar: meta.avatar_url || meta.picture,
+    profile: {},
+    createdAt: supaUser.created_at ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * OAuth リダイレクトURLからセッションを確立する。
+ * PKCE（?code=...）と implicit（#access_token=...）の両方に対応。
+ */
+async function establishSessionFromUrl(url: string): Promise<AuthResponse> {
+  const urlObj = new URL(url);
+  const code = urlObj.searchParams.get('code');
+
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return { user: null, error: { message: error.message, code: error.code } };
+    if (!data.user) return { user: null, error: { message: '認証に失敗しました' } };
+    return { user: await buildUserFromSupabase(data.user), error: null };
+  }
+
+  // implicit（hash fragment）フォールバック
+  let accessToken = urlObj.searchParams.get('access_token');
+  let refreshToken = urlObj.searchParams.get('refresh_token');
+  if (!accessToken && urlObj.hash) {
+    const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+    accessToken = hashParams.get('access_token');
+    refreshToken = hashParams.get('refresh_token');
+  }
+  if (!accessToken || !refreshToken) {
+    return { user: null, error: { message: '認証情報が取得できませんでした' } };
+  }
+  const { data, error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (error) return { user: null, error: { message: error.message, code: error.code } };
+  if (!data.user) return { user: null, error: { message: '認証に失敗しました' } };
+  return { user: await buildUserFromSupabase(data.user), error: null };
+}
+
+/**
+ * Googleでログイン / 新規登録（共通authのWeb側と同一プロバイダ）
+ * ブラウザセッションで完結するため、_layout のディープリンク処理とは競合しない。
+ */
+export async function signInWithGoogle(): Promise<OAuthResponse> {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: OAUTH_REDIRECT_URL,
+        skipBrowserRedirect: true,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+
+    if (error) return { user: null, error: { message: error.message, code: error.code } };
+    if (!data?.url) return { user: null, error: { message: 'Google認証の開始に失敗しました' } };
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT_URL);
+
+    // キャンセル/閉じた場合はエラー扱いしない
+    if (result.type !== 'success' || !result.url) {
+      return { user: null, error: null, cancelled: true };
+    }
+
+    return await establishSessionFromUrl(result.url);
+  } catch (err: any) {
+    return { user: null, error: { message: err.message || 'Googleログインに失敗しました' } };
+  }
 }
 
 /**

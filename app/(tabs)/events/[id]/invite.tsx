@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
@@ -96,23 +97,31 @@ export default function InviteScreen() {
           }}
         >
           <ResponsiveContainer className={isMd ? 'max-w-xl w-full' : 'w-full'}>
-          {/* イベント情報 */}
-          <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <Card variant="elevated" className="mb-6 bg-gradient-to-br from-secondary-50 to-primary-50">
-              <View className="items-center py-4">
-                <View className="w-16 h-16 bg-secondary-100 rounded-full items-center justify-center mb-3">
-                  <Feather name="calendar" size={32} color="#f97316" />
+          {/* イベント情報（グラデーションヒーロー） */}
+          <Animated.View entering={FadeInDown.delay(100).duration(600)} className="mb-6">
+            <LinearGradient
+              colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 24, padding: 24 }}
+            >
+              <View className="items-center">
+                <View
+                  className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.22)' }}
+                >
+                  <Feather name="calendar" size={32} color="#ffffff" />
                 </View>
-                <Text className="text-xl font-bold text-gray-900 text-center mb-2">
+                <Text className="text-xl font-bold text-white text-center mb-1">
                   {event.title}
                 </Text>
                 {event.description && (
-                  <Text className="text-sm text-gray-600 text-center">
+                  <Text className="text-sm text-white/80 text-center">
                     {event.description}
                   </Text>
                 )}
               </View>
-            </Card>
+            </LinearGradient>
           </Animated.View>
 
           {/* 招待コード */}
@@ -120,16 +129,16 @@ export default function InviteScreen() {
             entering={FadeInDown.delay(150).duration(600)}
             className="mb-6"
           >
-            <Text className="text-lg font-bold text-gray-900 mb-3">
+            <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               招待コード
             </Text>
             <Card variant="elevated">
               <View className="items-center py-6">
-                <Text className="text-sm text-gray-500 mb-2">
+                <Text className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   このコードをアプリで入力
                 </Text>
-                <View className="bg-gray-100 px-6 py-4 rounded-xl mb-4">
-                  <Text className="text-3xl font-bold text-gray-900 tracking-widest">
+                <View className={`px-6 py-4 rounded-xl mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Text className={`text-3xl font-bold tracking-widest ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {event.inviteCode || '読み込み中...'}
                   </Text>
                 </View>
@@ -153,7 +162,7 @@ export default function InviteScreen() {
             entering={FadeInDown.delay(200).duration(600)}
             className="mb-6"
           >
-            <Text className="text-lg font-bold text-gray-900 mb-3">
+            <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               QRコード
             </Text>
             <Card variant="elevated">
@@ -166,7 +175,7 @@ export default function InviteScreen() {
                     color="#111827"
                   />
                 </View>
-                <Text className="text-sm text-gray-600 text-center">
+                <Text className={`text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   カメラでスキャンして参加
                 </Text>
               </View>
@@ -175,11 +184,11 @@ export default function InviteScreen() {
 
           {/* 共有方法 */}
           <Animated.View entering={FadeInDown.delay(250).duration(600)}>
-            <Text className="text-lg font-bold text-gray-900 mb-3">
+            <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               共有する
             </Text>
             <Card variant="elevated">
-              <View className="space-y-2">
+              <View className="gap-2">
                 <Button
                   title="LINEで共有"
                   icon={<Feather name="message-circle" size={18} color="#ffffff" />}

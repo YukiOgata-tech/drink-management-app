@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
 import { hasClaimedEventXP } from '@/lib/storage/eventXpClaimed';
+import { fetchClaimedEventIds } from '@/lib/xp-api';
 import { Event } from '@/types';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -38,19 +39,28 @@ export function EndedEventBanner({ onDismiss }: EndedEventBannerProps) {
       return;
     }
 
-    // 終了済みイベントをフィルタリング
+    // 終了済みイベント
     const endedEvents = events.filter((e) => e.endedAt);
+    if (endedEvents.length === 0) {
+      setUnclaimedEvents([]);
+      return;
+    }
 
-    // XP未受取のイベントをチェック
-    const unclaimed: Event[] = [];
+    // サーバーで完了XPが付与されたイベント（＝在籍者だったイベント）のみ対象。
+    // 離脱者は claim が無いのでバナーを出さない。
+    const claimedIds = await fetchClaimedEventIds(user.id);
+
+    // 付与済み かつ 結果モーダル未表示（ローカル）のものをバナー対象に
+    const unseen: Event[] = [];
     for (const event of endedEvents) {
-      const claimed = await hasClaimedEventXP(user.id, event.id);
-      if (!claimed) {
-        unclaimed.push(event);
+      if (!claimedIds.has(event.id)) continue;
+      const seen = await hasClaimedEventXP(user.id, event.id);
+      if (!seen) {
+        unseen.push(event);
       }
     }
 
-    setUnclaimedEvents(unclaimed);
+    setUnclaimedEvents(unseen);
   };
 
   const handlePress = () => {

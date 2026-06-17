@@ -4,12 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LEGAL_VERSIONS } from '@/types';
 import { ResponsiveContainer } from '@/components/ui';
-import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 
 export default function TermsScreen() {
-  const colorScheme = useThemeStore((state) => state.colorScheme);
-  const isDark = colorScheme === 'dark';
+  // 法的ページは長文の可読性を優先し、ライト固定（ダークモードでも明色表示）
+  const isDark = false;
   const { isMd } = useResponsive();
 
   return (
@@ -33,7 +32,7 @@ export default function TermsScreen() {
         }}
       >
         <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
-        <View className="space-y-6 pb-8">
+        <View className="gap-y-6 pb-8">
           {/* バージョン情報 */}
           <View className="bg-gray-100 rounded-lg p-3">
             <Text className="text-sm text-gray-600">
@@ -53,7 +52,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第1条（定義）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 「本アプリ」とは、飲酒記録・管理・振り返りを目的としたモバイルアプリケーション「Alcohol Log & Event Hub」をいいます。
               </Text>
@@ -74,7 +73,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第2条（利用資格）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 本アプリは、日本国内において満20歳以上の方のみを対象としています。
               </Text>
@@ -95,7 +94,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第3条（本アプリの目的）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 本アプリは、飲酒を促進するものではありません。
               </Text>
@@ -113,7 +112,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第4条（アカウント）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 利用者は、本アプリの一部機能を利用するためにアカウントを作成することができます。
               </Text>
@@ -137,7 +136,7 @@ export default function TermsScreen() {
             <Text className="text-base text-gray-800 leading-7 mb-2">
               利用者は、本アプリの利用にあたり、以下の行為を行ってはなりません。
             </Text>
-            <View className="ml-4 space-y-1">
+            <View className="ml-4 gap-y-1">
               <Text className="text-base text-gray-800 leading-7">
                 1. 法令または公序良俗に違反する行為
               </Text>
@@ -173,7 +172,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第6条（コンテンツの取り扱い）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 利用者が本アプリに入力したコンテンツの著作権は、当該利用者に帰属します。
               </Text>
@@ -191,7 +190,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第7条（免責事項）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 本アプリは「現状有姿」で提供されます。開発者は、本アプリの完全性、正確性、確実性、有用性等について、いかなる保証も行いません。
               </Text>
@@ -215,7 +214,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第8条（飲酒に関する注意事項）
             </Text>
-            <View className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
+            <View className="bg-red-50 border border-red-200 rounded-lg p-4 gap-y-2">
               <Text className="text-base text-red-800 leading-7">
                 1. 20歳未満の者の飲酒は法律で禁止されています。
               </Text>
@@ -239,7 +238,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第9条（サービスの変更・終了）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 開発者は、利用者への事前通知なく、本アプリの内容を変更し、または提供を中止・終了することができます。
               </Text>
@@ -254,7 +253,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第10条（利用者資格の停止・取消）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 開発者は、利用者が本規約に違反した場合、または本アプリの運営上必要と判断した場合、事前の通知なく当該利用者の利用資格を停止または取り消すことができます。
               </Text>
@@ -269,7 +268,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第11条（本規約の変更）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 開発者は、必要と判断した場合、利用者への事前通知なく本規約を変更することができます。
               </Text>
@@ -287,7 +286,7 @@ export default function TermsScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第12条（準拠法・管轄裁判所）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. 本規約の解釈および適用は、日本法に準拠するものとします。
               </Text>

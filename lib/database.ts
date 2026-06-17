@@ -1,3 +1,4 @@
+import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
 import { User, UserProfile } from '@/types';
 
@@ -198,21 +199,34 @@ export function canChangeDisplayName(displayNameChangedAt?: string): {
 }
 
 /**
- * アバター画像をSupabase Storageにアップロードしてプロフィールを更新
+ * アバター画像をSupabase Storageにアップロードしてプロフィールを更新。
+ *
+ * 注意: React Native では fetch(uri).blob() が 0 バイトの空ファイルを生成する既知の不具合があるため、
+ * 画像の base64 を ArrayBuffer に変換してアップロードする（Supabase公式のRN推奨手法）。
+ * base64 は呼び出し側（expo-image-picker の `base64: true`）から渡す。
  */
 export async function uploadAvatar(
   userId: string,
-  imageUri: string
+  base64: string,
+  mimeType?: string
 ): Promise<{ url: string | null; error: DatabaseError | null }> {
   try {
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    const ext = imageUri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
+    if (!base64) {
+      return { url: null, error: { message: '画像データを取得できませんでした' } };
+    }
+
+    const contentType = mimeType || 'image/jpeg';
+    const ext = contentType.includes('png')
+      ? 'png'
+      : contentType.includes('webp')
+        ? 'webp'
+        : 'jpg';
     const filename = `${userId}/avatar.${ext}`;
+    const arrayBuffer = decode(base64);
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(filename, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+      .upload(filename, arrayBuffer, { upsert: true, contentType });
 
     if (uploadError) {
       return { url: null, error: { message: uploadError.message } };
@@ -220,12 +234,16 @@ export async function uploadAvatar(
 
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filename);
 
-    const { error: dbError } = await updateAvatar(userId, urlData.publicUrl);
+    // 同名ファイルを upsert しているため公開URLが毎回同一になり、
+    // RNの画像キャッシュで古い画像が表示され続ける。クエリでキャッシュバスト。
+    const bustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const { error: dbError } = await updateAvatar(userId, bustedUrl);
     if (dbError) {
       return { url: null, error: dbError };
     }
 
-    return { url: urlData.publicUrl, error: null };
+    return { url: bustedUrl, error: null };
   } catch (err: any) {
     return { url: null, error: { message: err.message || 'アップロードに失敗しました' } };
   }

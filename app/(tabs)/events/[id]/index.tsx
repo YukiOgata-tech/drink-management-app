@@ -14,15 +14,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { Button, Card, ResponsiveContainer } from '@/components/ui';
-import { DrinkLogCard, ParticipantRow } from '@/components/event';
+import { Button, Card, ResponsiveContainer, LoadingScreen } from '@/components/ui';
+import { DrinkLogCard, ParticipantRow, RealtimeCappedNotice, EventErrorBanner } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
+import { useEventRealtime } from '@/lib/useEventRealtime';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser } from '@/types';
-import { XP_VALUES, calculateEventCompleteXP, getRankingBonus, getParticipantBonus } from '@/lib/xp';
+import { fetchEventXPClaim } from '@/lib/xp-api';
 import { hasClaimedEventXP, markEventXPClaimed } from '@/lib/storage/eventXpClaimed';
 import Animated, { FadeInDown, FadeIn, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -48,7 +49,7 @@ interface EventResultData {
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user, isGuest, addXP } = useUserStore();
+  const { user, isGuest, refreshXP } = useUserStore();
   const {
     getEventById,
     getEventMembers,
@@ -75,28 +76,6 @@ export default function EventDetailScreen() {
   const event = getEventById(id);
   const members = getEventMembers(id);
 
-  // ユーザーのランキングを計算
-  const calculateUserRank = (userId: string, logs: DrinkLogWithUser[]): number | null => {
-    // 各ユーザーの純アルコール量を集計
-    const userTotals: Record<string, number> = {};
-    logs
-      .filter((log) => log.status === 'approved')
-      .forEach((log) => {
-        if (!userTotals[log.userId]) {
-          userTotals[log.userId] = 0;
-        }
-        userTotals[log.userId] += log.pureAlcoholG * log.count;
-      });
-
-    // ランキングを作成
-    const ranking = Object.entries(userTotals)
-      .sort(([, a], [, b]) => b - a)
-      .map(([id], index) => ({ userId: id, rank: index + 1 }));
-
-    const userRanking = ranking.find((r) => r.userId === userId);
-    return userRanking?.rank || null;
-  };
-
   // 画面がフォーカスされるたびにデータを再取得
   useFocusEffect(
     useCallback(() => {
@@ -104,71 +83,49 @@ export default function EventDetailScreen() {
     }, [id])
   );
 
-  // 終了したイベントで参加者がXPを受け取っていない場合、XPを付与
+  // 終了済みイベントを開いたとき、サーバー付与済みの完了XP結果を取得して表示する。
+  // （XPの付与・重複防止・離脱者除外はすべてサーバー側のトリガー/関数が担保）
   useEffect(() => {
-    const checkAndClaimXP = async () => {
+    const showCompletionResult = async () => {
       if (!user || isGuest || !event || !event.endedAt || xpClaimChecked) return;
-
       setXpClaimChecked(true);
 
-      // 既にXPを受け取っているか確認
-      const alreadyClaimed = await hasClaimedEventXP(user.id, id);
-      if (alreadyClaimed) return;
+      // 結果モーダルを既に表示済みか（UIフラグのみ。XP重複防止はサーバー側）
+      const alreadyShown = await hasClaimedEventXP(user.id, id);
+      if (alreadyShown) return;
 
-      // XPを計算
       try {
-        // このイベントで自分が記録した飲酒記録を計算
-        const myLogs = drinkLogs.filter(
-          (log) => log.userId === user.id && log.status === 'approved'
-        );
-        const drinkLogsCount = myLogs.reduce((sum, log) => sum + log.count, 0);
-        const drinkLogsXP = myLogs.reduce(
-          (sum, log) => sum + Math.floor(log.pureAlcoholG), 0
-        );
+        const { claim } = await fetchEventXPClaim(user.id, id);
+        // 付与対象外（離脱メンバー等）は claim=null → 何も表示しない
+        if (!claim) return;
 
-        // 参加人数とランキングを取得
-        const participantCount = members.length;
-        const userRank = calculateUserRank(user.id, drinkLogs);
-
-        // 総XPを計算
-        const xpDetails = calculateEventCompleteXP(
-          participantCount,
-          userRank,
-          drinkLogsXP
-        );
-
-        // XPを付与
-        const xpResult = await addXP(xpDetails.totalXP, 'event_complete');
-
-        // XP受け取り済みをマーク
         await markEventXPClaimed(user.id, id);
+        await refreshXP(); // プロフィールのXP/レベルをUIへ反映
 
-        // 結果データを設定
         setResultData({
-          baseXP: xpDetails.baseXP,
-          participantBonus: xpDetails.participantBonus,
-          participantCount,
-          rankingBonus: xpDetails.rankingBonus,
-          rank: userRank,
-          drinkLogsCount,
-          drinkLogsXP,
-          totalXP: xpDetails.totalXP,
-          leveledUp: xpResult.leveledUp,
-          newLevel: xpResult.newLevel,
-          debtPaid: xpResult.debtPaid,
+          baseXP: claim.baseXP,
+          participantBonus: claim.participantBonus,
+          participantCount: claim.participantCount,
+          rankingBonus: claim.rankingBonus,
+          rank: claim.rank,
+          drinkLogsCount: claim.drinkCount,
+          drinkLogsXP: claim.drinkLogsXP,
+          totalXP: claim.totalXP,
+          leveledUp: claim.leveledUp,
+          newLevel: claim.newLevel ?? undefined,
+          debtPaid: claim.debtPaid,
         });
         setShowResultModal(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (error) {
-        console.error('Error claiming event XP:', error);
+        console.error('Error showing event completion result:', error);
       }
     };
 
-    // drinkLogsとmembersが読み込まれた後にXPチェック
-    if (!loading && drinkLogs.length >= 0 && members.length > 0) {
-      checkAndClaimXP();
+    if (!loading && event?.endedAt) {
+      showCompletionResult();
     }
-  }, [user, isGuest, event, id, loading, drinkLogs, members, xpClaimChecked]);
+  }, [user, isGuest, event, id, loading, xpClaimChecked]);
 
   const loadData = async () => {
     setLoading(true);
@@ -194,6 +151,13 @@ export default function EventDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // リアルタイム購読（開催中イベントのみ。上限超過時は 'capped' で手動更新へ）
+  const realtimeStatus = useEventRealtime({
+    eventId: id,
+    enabled: !!event && !event.endedAt,
+    onChange: loadDrinkLogs,
+  });
+
   const handleEndEvent = () => {
     Alert.alert(
       'イベントを終了',
@@ -207,53 +171,34 @@ export default function EventDetailScreen() {
             await endEvent(id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            // 認証ユーザーの場合、イベント完了XPを付与
+            // 完了XPは終了トリガーでサーバー側が在籍者へ付与済み。
+            // ここでは付与結果を取得して結果モーダルを表示するだけ。
             if (!isGuest && user) {
+              setXpClaimChecked(true); // useEffect側の二重表示を防止
               try {
-                // このイベントで自分が記録した飲酒記録を計算
-                const myLogs = drinkLogs.filter(
-                  (log) => log.userId === user.id && log.status === 'approved'
-                );
-                const drinkLogsCount = myLogs.reduce((sum, log) => sum + log.count, 0);
-                const drinkLogsXP = myLogs.reduce(
-                  (sum, log) => sum + Math.floor(log.pureAlcoholG), 0
-                );
-
-                // 参加人数とランキングを取得
-                const participantCount = members.length;
-                const userRank = calculateUserRank(user.id, drinkLogs);
-
-                // 総XPを計算
-                const xpDetails = calculateEventCompleteXP(
-                  participantCount,
-                  userRank,
-                  drinkLogsXP
-                );
-
-                // XPを付与
-                const xpResult = await addXP(xpDetails.totalXP, 'event_complete');
-
-                // XP受け取り済みをマーク（ホストも記録）
-                await markEventXPClaimed(user.id, id);
-
-                // 結果データを設定
-                setResultData({
-                  baseXP: xpDetails.baseXP,
-                  participantBonus: xpDetails.participantBonus,
-                  participantCount,
-                  rankingBonus: xpDetails.rankingBonus,
-                  rank: userRank,
-                  drinkLogsCount,
-                  drinkLogsXP,
-                  totalXP: xpDetails.totalXP,
-                  leveledUp: xpResult.leveledUp,
-                  newLevel: xpResult.newLevel,
-                  debtPaid: xpResult.debtPaid,
-                });
-                setShowResultModal(true);
+                const { claim } = await fetchEventXPClaim(user.id, id);
+                if (claim) {
+                  await markEventXPClaimed(user.id, id);
+                  await refreshXP();
+                  setResultData({
+                    baseXP: claim.baseXP,
+                    participantBonus: claim.participantBonus,
+                    participantCount: claim.participantCount,
+                    rankingBonus: claim.rankingBonus,
+                    rank: claim.rank,
+                    drinkLogsCount: claim.drinkCount,
+                    drinkLogsXP: claim.drinkLogsXP,
+                    totalXP: claim.totalXP,
+                    leveledUp: claim.leveledUp,
+                    newLevel: claim.newLevel ?? undefined,
+                    debtPaid: claim.debtPaid,
+                  });
+                  setShowResultModal(true);
+                } else {
+                  router.replace('/(tabs)/events');
+                }
               } catch (error) {
-                console.error('Error granting event complete XP:', error);
-                // XP付与エラーでもイベント一覧に戻る
+                console.error('Error showing event complete result:', error);
                 router.replace('/(tabs)/events');
               }
             } else {
@@ -297,13 +242,7 @@ export default function EventDetailScreen() {
   };
 
   if (!user || !event) {
-    return (
-      <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <View className="flex-1 items-center justify-center">
-          <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>読み込み中...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingScreen message="イベントを読み込み中..." />;
   }
 
   const isHost = event.hostId === user.id;
@@ -318,6 +257,7 @@ export default function EventDetailScreen() {
 
   return (
     <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <EventErrorBanner />
       <View className="flex-1">
         {/* ヘッダー */}
         <View className={`px-6 py-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
@@ -426,6 +366,9 @@ export default function EventDetailScreen() {
           }
         >
           <ResponsiveContainer className={isMd ? 'max-w-3xl w-full' : 'w-full'}>
+          {/* リアルタイム上限到達時のユーモア通知（開催中のみ） */}
+          {realtimeStatus === 'capped' && <RealtimeCappedNotice isDark={isDark} />}
+
           {/* 終了バナー（終了したイベントの場合） */}
           {!isActive && (
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
@@ -485,7 +428,7 @@ export default function EventDetailScreen() {
                 <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   アクション
                 </Text>
-                <View className="space-y-2">
+                <View className="gap-y-2">
                   {(event.recordingRule === 'self' || canManage) && (
                     <Button
                       title="飲酒記録を追加"
@@ -595,7 +538,7 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             </View>
             {drinkLogs.length > 0 ? (
-              <View className="space-y-3">
+              <View className="gap-y-3">
                 {drinkLogs.slice(0, 10).map((log, index) => (
                   <Animated.View
                     key={log.id}
@@ -683,7 +626,7 @@ export default function EventDetailScreen() {
                     <Text className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       獲得XP
                     </Text>
-                    <View className="space-y-2">
+                    <View className="gap-y-2">
                       {/* 基本XP */}
                       <View className="flex-row justify-between">
                         <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>イベント完了</Text>
@@ -716,14 +659,14 @@ export default function EventDetailScreen() {
                         </View>
                       )}
 
-                      {/* 飲酒記録XP */}
+                      {/* 飲酒記録（XPは記録時に付与済みのため完了XPには含めない） */}
                       {resultData.drinkLogsCount > 0 && (
                         <View className="flex-row justify-between">
                           <Text className={isDark ? 'text-gray-300' : 'text-gray-700'}>
                             飲酒記録 ({resultData.drinkLogsCount}杯)
                           </Text>
-                          <Text className="font-bold text-primary-600">
-                            +{resultData.drinkLogsXP} XP
+                          <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            記録時に付与済み
                           </Text>
                         </View>
                       )}

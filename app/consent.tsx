@@ -133,7 +133,7 @@ export default function ConsentScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-gradient-to-b from-primary-50 to-white">
+    <SafeAreaView edges={['top', 'left', 'right']} className="flex-1 bg-primary-50">
       <Animated.View entering={FadeIn.duration(600)} className={`flex-1 py-6 ${isMd ? 'items-center' : ''}`}>
         <ResponsiveContainer maxWidth="form" className="flex-1 px-6">
         {/* ヘッダー */}
@@ -163,7 +163,7 @@ export default function ConsentScreen() {
         {/* ステップ1: 年齢確認 */}
         {currentStep === 'age' && (
           <Animated.View entering={FadeInDown.duration(600)} className="flex-1">
-            <Card variant="elevated" className="flex-1">
+            <Card variant="elevated" className="flex-1 bg-white">
               <Text className="text-xl font-bold text-gray-900 mb-2">
                 年齢確認
               </Text>
@@ -240,7 +240,7 @@ export default function ConsentScreen() {
         {/* ステップ2: 利用規約・プライバシーポリシー同意 */}
         {currentStep === 'terms' && (
           <Animated.View entering={FadeInDown.duration(600)} className="flex-1">
-            <Card variant="elevated" className="flex-1">
+            <Card variant="elevated" className="flex-1 bg-white">
               <Text className="text-xl font-bold text-gray-900 mb-2">
                 ご利用にあたって
               </Text>
@@ -259,7 +259,7 @@ export default function ConsentScreen() {
                 }}
                 scrollEventThrottle={400}
               >
-                <View className="space-y-4">
+                <View className="gap-y-4">
                   {/* アプリの目的 */}
                   <View>
                     <Text className="text-base font-semibold text-gray-900 mb-2">
@@ -327,7 +327,7 @@ export default function ConsentScreen() {
               </ScrollView>
 
               {/* 同意チェックボックス */}
-              <View className="space-y-3 mb-4">
+              <View className="gap-y-3 mb-4">
                 {/* 利用規約 */}
                 <TouchableOpacity
                   onPress={() => {

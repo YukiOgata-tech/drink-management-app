@@ -15,7 +15,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
@@ -27,6 +27,7 @@ import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 import { DrinkCategory, Product, CustomDrink, DefaultDrink } from '@/types';
 import { calculatePureAlcohol } from '@/lib/products';
+import { useBarcodeScanStore } from '@/stores/barcodeScan';
 import {
   getAddPersonalCollapsedSections,
   setAddPersonalCollapsedSection,
@@ -39,18 +40,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// バーコードスキャンから渡される商品情報
-type BarcodeProduct = {
-  id: string;
-  name: string;
-  brand?: string;
-  category: DrinkCategory;
-  ml: number;
-  abv: number;
-  pureAlcoholG: number;
-  emoji: string;
-  barcode: string;
-};
 
 // 最大同時選択数
 const MAX_SELECTIONS = 5;
@@ -115,7 +104,8 @@ const getCategoryEmoji = (category: DrinkCategory): string => {
 };
 
 export default function AddPersonalDrinkScreen() {
-  const { barcodeProduct } = useLocalSearchParams<{ barcodeProduct?: string }>();
+  const pendingBarcodeProduct = useBarcodeScanStore((s) => s.pendingProduct);
+  const consumePendingProduct = useBarcodeScanStore((s) => s.consumePendingProduct);
 
   const user = useUserStore((state) => state.user);
   const addLog = usePersonalLogsStore((state) => state.addLog);
@@ -183,25 +173,27 @@ export default function AddPersonalDrinkScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // バーコードスキャンからの商品を処理
+  // バーコードスキャン結果をストアから受け取って選択リストに追加
   useEffect(() => {
-    if (barcodeProduct) {
-      try {
-        const product: BarcodeProduct = JSON.parse(barcodeProduct);
-        const drinkInfo: DefaultDrink = {
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          ml: product.ml,
-          abv: product.abv,
-          pureAlcoholG: product.pureAlcoholG,
-          emoji: product.emoji,
-        };
+    if (!pendingBarcodeProduct) return;
+    const product = consumePendingProduct();
+    if (!product) return;
 
-        // 既に選択済みでなければ追加
-        const alreadySelected = selectedDrinks.some((item) => item.drink.id === product.id);
-        if (!alreadySelected) {
-          setSelectedDrinks((prev) => [
+    const drinkInfo: DefaultDrink = {
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      ml: product.ml,
+      abv: product.abv,
+      pureAlcoholG: product.pureAlcoholG,
+      emoji: product.emoji,
+    };
+
+    // 既に選択済みでなければ追加（重複チェックは setState 内で行い stale を防止）
+    setSelectedDrinks((prev) =>
+      prev.some((item) => item.drink.id === product.id)
+        ? prev
+        : [
             ...prev,
             {
               id: `${product.id}_${Date.now()}`,
@@ -209,14 +201,10 @@ export default function AddPersonalDrinkScreen() {
               isCustom: false,
               count: 1,
             },
-          ]);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      } catch (e) {
-        console.error('Failed to parse barcode product:', e);
-      }
-    }
-  }, [barcodeProduct]);
+          ]
+    );
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [pendingBarcodeProduct, consumePendingProduct]);
 
   // 最近記録したドリンク（最新3件、重複除外）
   const recentDrinks: RecentDrinkInfo[] = React.useMemo(() => {
@@ -813,7 +801,7 @@ export default function AddPersonalDrinkScreen() {
                     nestedScrollEnabled
                     showsVerticalScrollIndicator
                   >
-                    <View className="space-y-2">
+                    <View className="gap-y-2">
                       {allSearchDrinks.slice(0, 10).map(({ drink, isCustom }) => (
                         <TouchableOpacity
                           key={drink.id}

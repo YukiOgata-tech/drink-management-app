@@ -4,12 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Card, ResponsiveContainer } from '@/components/ui';
 import { LEGAL_VERSIONS } from '@/types';
-import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 
 export default function DrinkingGuideScreen() {
-  const colorScheme = useThemeStore((state) => state.colorScheme);
-  const isDark = colorScheme === 'dark';
+  // 法的ページは長文の可読性を優先し、ライト固定（ダークモードでも明色表示）
+  const isDark = false;
   const { isMd } = useResponsive();
 
   const handleOpenLink = (url: string) => {
@@ -37,7 +36,7 @@ export default function DrinkingGuideScreen() {
         }}
       >
         <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
-        <View className="space-y-6 pb-8">
+        <View className="gap-y-6 pb-8">
           {/* バージョン情報 */}
           <View className="bg-gray-100 rounded-lg p-3">
             <Text className="text-sm text-gray-600">
@@ -50,7 +49,7 @@ export default function DrinkingGuideScreen() {
             <Text className="text-lg font-bold text-red-900 mb-3">
               飲酒に関する重要な注意事項
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <View className="flex-row">
                 <Text className="text-red-800 mr-2">1.</Text>
                 <Text className="text-base text-red-800 leading-7 flex-1">
@@ -80,11 +79,11 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               適正な飲酒量について
             </Text>
-            <Card variant="outlined">
+            <Card variant="outlined" className="bg-white">
               <Text className="text-base text-gray-800 leading-7 mb-4">
                 厚生労働省の「健康日本21」では、「節度ある適度な飲酒」として以下の基準を示しています。
               </Text>
-              <View className="bg-primary-50 rounded-lg p-4 space-y-3">
+              <View className="bg-primary-50 rounded-lg p-4 gap-y-3">
                 <View className="flex-row items-center">
                   <Text className="text-2xl mr-3">👨</Text>
                   <View>
@@ -111,7 +110,7 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               純アルコール20gの目安
             </Text>
-            <View className="space-y-3">
+            <View className="gap-y-3">
               <View className="flex-row bg-amber-50 rounded-lg p-3 items-center">
                 <Text className="text-3xl mr-4">🍺</Text>
                 <View className="flex-1">
@@ -165,7 +164,7 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               休肝日について
             </Text>
-            <Card variant="outlined">
+            <Card variant="outlined" className="bg-white">
               <Text className="text-base text-gray-800 leading-7">
                 週に2日程度は飲酒しない日（休肝日）を設けることが推奨されています。連続して飲酒を続けると、肝臓への負担が蓄積し、健康リスクが高まります。
               </Text>
@@ -182,7 +181,7 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               過度な飲酒による健康リスク
             </Text>
-            <View className="space-y-3">
+            <View className="gap-y-3">
               <View className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <Text className="font-bold text-orange-900 mb-2">短期的なリスク</Text>
                 <Text className="text-orange-800 leading-6">
@@ -211,8 +210,8 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               飲酒を控えるべき方
             </Text>
-            <Card variant="outlined">
-              <View className="space-y-2">
+            <Card variant="outlined" className="bg-white">
+              <View className="gap-y-2">
                 <Text className="text-base text-gray-800 leading-7">• 20歳未満の方</Text>
                 <Text className="text-base text-gray-800 leading-7">• 妊娠中または妊娠の可能性がある方</Text>
                 <Text className="text-base text-gray-800 leading-7">• 授乳中の方</Text>
@@ -229,11 +228,11 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               アルコール依存症のサイン
             </Text>
-            <Card variant="outlined">
+            <Card variant="outlined" className="bg-white">
               <Text className="text-base text-gray-800 leading-7 mb-3">
                 以下のような症状がある場合は、専門医への相談をお勧めします。
               </Text>
-              <View className="space-y-2">
+              <View className="gap-y-2">
                 <Text className="text-base text-gray-800 leading-7">• 飲酒量をコントロールできない</Text>
                 <Text className="text-base text-gray-800 leading-7">• 飲酒のことで頭がいっぱいになる</Text>
                 <Text className="text-base text-gray-800 leading-7">• 飲酒をやめると手が震える、汗をかく</Text>
@@ -249,7 +248,7 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               相談窓口
             </Text>
-            <View className="space-y-3">
+            <View className="gap-y-3">
               <TouchableOpacity
                 onPress={() => handleOpenLink('tel:0570-064-556')}
                 className="bg-blue-50 border border-blue-300 rounded-lg p-4"
@@ -295,7 +294,7 @@ export default function DrinkingGuideScreen() {
             <Text className="text-xl font-bold text-gray-900 mb-4">
               参考資料
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <TouchableOpacity
                 onPress={() => handleOpenLink('https://www.e-healthnet.mhlw.go.jp/information/alcohol')}
                 className="flex-row items-center"

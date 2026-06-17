@@ -22,7 +22,7 @@ export default function JoinEventScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
-  const { fetchEventByInviteCode, addEventMember } = useEventsStore();
+  const { fetchEventByInviteCode, joinEvent } = useEventsStore();
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
   const { isMd } = useResponsive();
@@ -111,57 +111,52 @@ export default function JoinEventScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      const result = await addEventMember({
-        eventId: event.id,
-        userId: user.id,
-        role: 'member',
-      });
+      const { result, error: joinError } = await joinEvent(event.id);
 
-      // エラーがあった場合
-      if (result.error) {
+      // 通信等のエラー
+      if (joinError) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-
-        // エラーコードに応じたメッセージ
-        let errorMessage = '参加に失敗しました';
-        let canGoToEvent = false;
-
-        switch (result.errorCode) {
-          case 'ALREADY_MEMBER':
-            errorMessage = '既にこのイベントに参加しています';
-            canGoToEvent = true;
-            break;
-          case 'EVENT_ALREADY_ENDED':
-            errorMessage = 'このイベントは既に終了しています';
-            break;
-          case 'EVENT_NOT_FOUND':
-            errorMessage = 'イベントが見つかりません';
-            break;
-          default:
-            errorMessage = result.error.message || '参加に失敗しました';
-        }
-
-        if (canGoToEvent) {
-          Alert.alert('お知らせ', errorMessage, [
-            { text: 'キャンセル', style: 'cancel' },
-            {
-              text: 'イベントを見る',
-              onPress: () => router.replace(`/(tabs)/events/${event.id}`),
-            },
-          ]);
-        } else {
-          Alert.alert('エラー', errorMessage);
-        }
+        Alert.alert('エラー', joinError.message || '参加に失敗しました');
         return;
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const goToEvent = () => router.replace(`/(tabs)/events/${event.id}`);
 
-      Alert.alert('参加完了', 'イベントに参加しました', [
-        {
-          text: 'イベントを見る',
-          onPress: () => router.replace(`/(tabs)/events/${event.id}`),
-        },
-      ]);
+      switch (result) {
+        case 'JOINED':
+        case 'REJOINED':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert(
+            '参加完了',
+            result === 'REJOINED' ? 'イベントに再参加しました' : 'イベントに参加しました',
+            [{ text: 'イベントを見る', onPress: goToEvent }]
+          );
+          break;
+        case 'ALREADY_MEMBER':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          Alert.alert('お知らせ', '既にこのイベントに参加しています', [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: 'イベントを見る', onPress: goToEvent },
+          ]);
+          break;
+        case 'EVENT_ALREADY_ENDED':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert('エラー', 'このイベントは既に終了しています');
+          break;
+        case 'EVENT_NOT_FOUND':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert('エラー', 'イベントが見つかりません');
+          break;
+        case 'NOT_AUTHENTICATED':
+          Alert.alert('ログインが必要です', 'イベントに参加するにはログインしてください', [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: 'ログイン', onPress: () => router.push('/(auth)/login') },
+          ]);
+          break;
+        default:
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert('エラー', '参加に失敗しました');
+      }
     } catch (err: any) {
       console.error('Error joining event:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -213,7 +208,7 @@ export default function JoinEventScreen() {
           <Text className={`text-sm text-center mb-6 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
             終了日時: {dayjs(event.endedAt).format('M月D日 (ddd) HH:mm')}
           </Text>
-          <View className="space-y-3 w-full max-w-xs">
+          <View className="gap-3 w-full max-w-xs">
             <Button
               title="ホームに戻る"
               onPress={handleCancel}
@@ -243,7 +238,7 @@ export default function JoinEventScreen() {
           <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             既にこのイベントに参加しています
           </Text>
-          <View className="space-y-3 w-full max-w-xs">
+          <View className="gap-3 w-full max-w-xs">
             <Button
               title="イベントを見る"
               onPress={() => router.replace(`/(tabs)/events/${event.id}`)}
@@ -277,7 +272,7 @@ export default function JoinEventScreen() {
           <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             {error || 'イベントが見つかりませんでした'}
           </Text>
-          <View className="space-y-3 w-full max-w-xs">
+          <View className="gap-3 w-full max-w-xs">
             <Button
               title="もう一度試す"
               onPress={loadEvent}
@@ -351,7 +346,7 @@ export default function JoinEventScreen() {
                     {event.description}
                   </Text>
                 )}
-                <View className={`w-full rounded-xl p-4 space-y-3 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                <View className={`w-full rounded-xl p-4 gap-3 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <InfoRow
                     icon="clock"
                     label="開始日時"
@@ -377,7 +372,7 @@ export default function JoinEventScreen() {
 
           {/* アクションボタン */}
           <Animated.View entering={FadeInDown.delay(300).duration(600)}>
-            <View className="space-y-3">
+            <View className="gap-3">
               <Button
                 title={joining ? '参加中...' : '参加する'}
                 onPress={handleJoin}

@@ -14,19 +14,17 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
 import { Button, Card, ResponsiveContainer } from '@/components/ui';
 import { useResponsive } from '@/lib/responsive';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import {
-  fetchProductByBarcode,
-  isValidBarcode,
-  OpenFoodFactsProduct,
-} from '@/lib/openfoodfacts';
+import { isValidBarcode, OpenFoodFactsProduct } from '@/lib/openfoodfacts';
+import { lookupProductByBarcode } from '@/lib/barcode-lookup';
 import { calculatePureAlcohol } from '@/lib/products';
+import { useBarcodeScanStore } from '@/stores/barcodeScan';
 
 type ScanMode = 'camera' | 'manual';
 type ResultState = 'idle' | 'loading' | 'found' | 'not_found' | 'error';
@@ -49,8 +47,8 @@ const getCategoryEmoji = (category: string): string => {
 };
 
 export default function BarcodeScanScreen() {
-  // returnTo パラメータで戻り先を指定可能（デフォルトは個人記録追加画面）
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  // 読み取った商品はストア経由で呼び出し元フォームへ返す（この画面は pop して消える）
+  const setPendingProduct = useBarcodeScanStore((s) => s.setPendingProduct);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [mode, setMode] = useState<ScanMode>('camera');
@@ -83,7 +81,7 @@ export default function BarcodeScanScreen() {
     setResultState('loading');
     setProduct(null);
 
-    const result = await fetchProductByBarcode(barcode);
+    const result = await lookupProductByBarcode(barcode);
 
     if (result.error) {
       setResultState('error');
@@ -130,10 +128,11 @@ export default function BarcodeScanScreen() {
 
     const pureAlcoholG = calculatePureAlcohol(ml, abv);
 
-    const productData = JSON.stringify({
+    // 読み取り商品をストアにセットし、この画面を pop して呼び出し元フォームへ戻る。
+    // フォーム（個人記録 / イベント記録）はストアを購読して自動で反映する。
+    setPendingProduct({
       id: `barcode_${product.barcode}`,
       name: product.name,
-      brand: product.brand,
       category: product.category,
       ml,
       abv,
@@ -142,18 +141,8 @@ export default function BarcodeScanScreen() {
       barcode: product.barcode,
     });
 
-    // 商品情報をパラメータとして渡して戻る
-    // returnToが指定されていればそちらに、なければ個人記録追加画面へ
-    const targetPath = returnTo || '/(tabs)/drinks/add-personal';
-
-    router.navigate({
-      pathname: targetPath as any,
-      params: {
-        barcodeProduct: productData,
-      },
-    });
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.back();
   };
 
   const resetScan = () => {

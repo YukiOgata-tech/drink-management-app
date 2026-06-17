@@ -98,6 +98,32 @@ export async function getProductById(id: string): Promise<{
 }
 
 /**
+ * JANコード（バーコード）で公式商品を取得
+ * 未登録（該当なし）の場合は product=null・error=null を返す
+ */
+export async function getProductByBarcode(janCode: string): Promise<{
+  product: Product | null;
+  error: { message: string } | null;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('jan_code', janCode)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      return { product: null, error: { message: error.message } };
+    }
+
+    return { product: data, error: null };
+  } catch (err: any) {
+    return { product: null, error: { message: err.message || '商品の取得に失敗しました' } };
+  }
+}
+
+/**
  * 純アルコール量を計算
  */
 export function calculatePureAlcohol(ml: number, abv: number): number {

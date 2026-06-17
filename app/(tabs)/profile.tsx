@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  Image,
   TouchableOpacity,
   Alert,
   Switch,
@@ -14,7 +13,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, Input, ResponsiveContainer } from '@/components/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Avatar, Button, Card, Input, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useDevStore } from '@/stores/dev';
 import { useSyncStore } from '@/stores/sync';
@@ -146,6 +146,7 @@ export default function ProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
+      base64: true,
     });
 
     if (result.canceled || !result.assets[0]) return;
@@ -160,7 +161,11 @@ export default function ProfileScreen() {
 
     setIsUploadingAvatar(true);
     try {
-      const { url, error } = await uploadAvatar(user.id, result.assets[0].uri);
+      const { url, error } = await uploadAvatar(
+        user.id,
+        result.assets[0].base64 ?? '',
+        result.assets[0].mimeType
+      );
       if (error || !url) {
         Alert.alert('エラー', error?.message || 'アップロードに失敗しました');
         return;
@@ -237,90 +242,117 @@ export default function ProfileScreen() {
         contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
       >
         <ResponsiveContainer className={`px-6 py-8 ${isMd ? 'max-w-2xl' : ''}`}>
-          {/* ヘッダー */}
-          <View className="items-center mb-8">
-            <TouchableOpacity className="mb-4" onPress={handleChangeAvatar} disabled={isUploadingAvatar}>
-              <Image
-                source={{ uri: user.avatar }}
-                className="w-24 h-24 rounded-full border-4 border-primary-500"
-              />
-              <View className="absolute bottom-0 right-0 bg-primary-500 rounded-full w-8 h-8 items-center justify-center">
-                {isUploadingAvatar ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Feather name="camera" size={16} color="#ffffff" />
-                )}
-              </View>
-            </TouchableOpacity>
-            <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {user.displayName}
-            </Text>
-            <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{user.email}</Text>
-          </View>
+          {!isGuest ? (
+            /* プレイヤーカード（認証ユーザー）: アバター + 名前 + レベル + XP */
+            <Animated.View entering={FadeInDown.duration(500)} className="mb-6">
+              <LinearGradient
+                colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 28, padding: 20 }}
+              >
+                <View className="flex-row items-center">
+                  <TouchableOpacity onPress={handleChangeAvatar} disabled={isUploadingAvatar}>
+                    <Avatar
+                      uri={user.avatar}
+                      name={user.displayName}
+                      size={80}
+                      style={{ borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)' }}
+                    />
+                    <View
+                      className="absolute bottom-0 right-0 rounded-full w-7 h-7 items-center justify-center"
+                      style={{ backgroundColor: '#ffffff' }}
+                    >
+                      {isUploadingAvatar ? (
+                        <ActivityIndicator size="small" color="#0ea5e9" />
+                      ) : (
+                        <Feather name="camera" size={14} color="#0ea5e9" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
 
-          {/* レベル表示（認証ユーザーのみ） */}
-          {!isGuest && (
-            <Animated.View entering={FadeInDown.delay(25).duration(600)}>
-              <Card variant="elevated" className="mb-6">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <View className={`rounded-full w-12 h-12 items-center justify-center mr-3 ${isDark ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
-                      <Text className="text-2xl font-bold text-primary-600">
-                        {xpInfo.level}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        レベル {xpInfo.level}
-                      </Text>
-                      <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {xpInfo.totalXP.toLocaleString()} XP
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="items-end">
-                    <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      次のレベルまで
+                  <View className="flex-1 ml-4">
+                    <Text className="text-xl font-bold text-white" numberOfLines={1}>
+                      {user.displayName}
                     </Text>
-                    <Text className="text-sm font-semibold text-primary-600">
-                      {getXPToNextLevel(xpInfo.totalXP).toLocaleString()} XP
+                    <Text className="text-xs text-white/75" numberOfLines={1}>
+                      {user.email}
                     </Text>
                   </View>
-                </View>
-                {/* プログレスバー */}
-                <View className={`h-3 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+
                   <View
-                    className="h-full bg-primary-500 rounded-full"
-                    style={{ width: `${Math.min(100, xpInfo.progress)}%` }}
-                  />
+                    className="items-center justify-center rounded-2xl px-3.5 py-2"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}
+                  >
+                    <Text className="text-white/80 text-[10px] font-semibold tracking-wider">LEVEL</Text>
+                    <Text className="text-white text-2xl font-extrabold leading-7">{xpInfo.level}</Text>
+                  </View>
                 </View>
-                <Text className={`text-xs text-center mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  {xpInfo.currentLevelXP.toLocaleString()} / {xpInfo.nextLevelXP.toLocaleString()} XP
-                </Text>
-                {/* 借金XP表示 */}
+
+                {/* XPプログレス */}
+                <View className="mt-5">
+                  <View className="flex-row items-center justify-between mb-1.5">
+                    <Text className="text-white/90 text-xs font-semibold">
+                      {xpInfo.totalXP.toLocaleString()} XP
+                    </Text>
+                    <Text className="text-white/70 text-[11px]">
+                      次のレベルまで {getXPToNextLevel(xpInfo.totalXP).toLocaleString()} XP
+                    </Text>
+                  </View>
+                  <View
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
+                  >
+                    <View
+                      className="h-2 rounded-full"
+                      style={{ width: `${Math.max(4, Math.min(100, xpInfo.progress))}%`, backgroundColor: '#ffffff' }}
+                    />
+                  </View>
+                </View>
+
+                {/* 借金XP */}
                 {xpInfo.negativeXP > 0 && (
-                  <View className={`mt-3 border rounded-lg p-3 ${isDark ? 'bg-amber-900/20 border-amber-700' : 'bg-amber-50 border-amber-200'}`}>
-                    <View className="flex-row items-center">
-                      <Feather name="alert-triangle" size={18} color={isDark ? '#fbbf24' : '#b45309'} style={{ marginRight: 8 }} />
-                      <View className="flex-1">
-                        <Text className={`text-xs font-semibold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
-                          借金XP: {xpInfo.negativeXP.toLocaleString()} XP
-                        </Text>
-                        <Text className={`text-xs mt-0.5 ${isDark ? 'text-amber-300/80' : 'text-amber-600'}`}>
-                          次回の記録追加時に相殺されます
-                        </Text>
-                      </View>
-                    </View>
+                  <View
+                    className="flex-row items-center mt-3 rounded-xl px-3 py-2"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.18)' }}
+                  >
+                    <Feather name="alert-triangle" size={14} color="#fde68a" />
+                    <Text className="text-amber-100 text-xs ml-2 flex-1">
+                      借金XP {xpInfo.negativeXP.toLocaleString()} XP（次回の記録時に相殺）
+                    </Text>
                   </View>
                 )}
-              </Card>
+              </LinearGradient>
             </Animated.View>
+          ) : (
+            /* ゲスト: シンプルヘッダー */
+            <View className="items-center mb-8">
+              <TouchableOpacity className="mb-4" onPress={handleChangeAvatar} disabled={isUploadingAvatar}>
+                <Avatar
+                  uri={user.avatar}
+                  name={user.displayName}
+                  size={96}
+                  style={{ borderWidth: 4, borderColor: '#0ea5e9' }}
+                />
+                <View className="absolute bottom-0 right-0 bg-primary-500 rounded-full w-8 h-8 items-center justify-center">
+                  {isUploadingAvatar ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Feather name="camera" size={16} color="#ffffff" />
+                  )}
+                </View>
+              </TouchableOpacity>
+              <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {user.displayName}
+              </Text>
+              <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{user.email}</Text>
+            </View>
           )}
 
           {/* ゲストモードまたはログアウト */}
           {isGuest ? (
             <Animated.View entering={FadeInDown.delay(50).duration(600)}>
-              <Card variant="elevated" className={`mb-6 ${isDark ? 'bg-gradient-to-br from-primary-900/20 to-secondary-900/20' : 'bg-gradient-to-br from-primary-50 to-secondary-50'}`}>
+              <Card variant="elevated" className="mb-6">
                 <View className="items-center py-4">
                   <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                     <Feather name="user" size={40} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -331,7 +363,7 @@ export default function ProfileScreen() {
                   <Text className={`text-sm text-center mb-6 px-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     グループイベントに参加するには{'\n'}アカウントの作成が必要です
                   </Text>
-                  <View className="w-full space-y-3">
+                  <View className="w-full gap-3">
                     <Button
                       title="新規登録"
                       onPress={() => router.push('/(auth)/signup')}
@@ -451,7 +483,7 @@ export default function ProfileScreen() {
                   )}
 
                   {Platform.OS === 'ios' && showDatePicker && (
-                    <View className="bg-white border border-gray-200 rounded-xl p-2 mb-4">
+                    <View className={`border rounded-xl p-2 mb-4 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
                       <Button
                         title="完了"
                         onPress={() => setShowDatePicker(false)}
@@ -460,22 +492,29 @@ export default function ProfileScreen() {
                     </View>
                   )}
 
-                  <Input
-                    label="身長 (cm)"
-                    value={height}
-                    onChangeText={setHeight}
-                    keyboardType="numeric"
-                    placeholder="例: 172"
-                    icon={<Feather name="arrow-up" size={20} color="#6b7280" />}
-                  />
-                  <Input
-                    label="体重 (kg)"
-                    value={weight}
-                    onChangeText={setWeight}
-                    keyboardType="numeric"
-                    placeholder="例: 65"
-                    icon={<Feather name="activity" size={20} color="#6b7280" />}
-                  />
+                  {/* 身長・体重は横並び（縦長を解消） */}
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Input
+                        label="身長 (cm)"
+                        value={height}
+                        onChangeText={setHeight}
+                        keyboardType="numeric"
+                        placeholder="例: 172"
+                        icon={<Feather name="arrow-up" size={20} color="#6b7280" />}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Input
+                        label="体重 (kg)"
+                        value={weight}
+                        onChangeText={setWeight}
+                        keyboardType="numeric"
+                        placeholder="例: 65"
+                        icon={<Feather name="activity" size={20} color="#6b7280" />}
+                      />
+                    </View>
+                  </View>
                   <Input
                     label="自己紹介"
                     value={bio}
@@ -505,7 +544,7 @@ export default function ProfileScreen() {
                   </View>
                 </View>
               ) : (
-                <View className="space-y-4">
+                <View className="gap-y-4">
                   <InfoRow
                     icon="gift"
                     label="年齢"
@@ -522,10 +561,10 @@ export default function ProfileScreen() {
                   <InfoRow icon="activity" label="体重" value={user.profile.weight ? `${user.profile.weight}kg` : '未設定'} />
                   {user.profile.bio && (
                     <View>
-                      <Text className="text-sm font-semibold text-gray-700 mb-1">
+                      <Text className={`text-sm font-semibold mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         自己紹介
                       </Text>
-                      <Text className="text-base text-gray-600">
+                      <Text className={`text-base ${isDark ? 'text-gray-100' : 'text-gray-600'}`}>
                         {user.profile.bio}
                       </Text>
                     </View>
@@ -561,7 +600,7 @@ export default function ProfileScreen() {
               <Text className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 情報・サポート
               </Text>
-              <View className="space-y-2">
+              <View className="gap-y-2">
                 <TouchableOpacity
                   onPress={() => router.push('/legal/drinking-guide')}
                   className={`flex-row items-center py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}
@@ -605,7 +644,7 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                <View className="space-y-3 mb-4">
+                <View className="gap-y-3 mb-4">
                   <View className="flex-row items-center justify-between">
                     <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>同期待ちデータ</Text>
                     <Text className={`text-sm font-semibold ${totalPending > 0 ? 'text-amber-600' : 'text-green-600'}`}>

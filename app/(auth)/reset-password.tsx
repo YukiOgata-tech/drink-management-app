@@ -93,7 +93,7 @@ export default function ResetPasswordScreen() {
           </Card>
 
           {/* フォーム */}
-          <View className="space-y-4">
+          <View className="gap-y-4">
             <View>
               <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 新しいパスワード

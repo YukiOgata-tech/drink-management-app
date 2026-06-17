@@ -3,8 +3,9 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
-import { EventCard } from '@/components/event';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Button, Card, ResponsiveContainer, ResponsiveGrid, Skeleton } from '@/components/ui';
+import { EventCard, EventErrorBanner } from '@/components/event';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
@@ -112,20 +113,29 @@ export default function EventsScreen() {
     <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* オフライン/同期ステータスバナー */}
       <SyncStatusBanner />
+      <EventErrorBanner />
 
       <View className="flex-1">
-        {/* ヘッダー */}
-        <View className={`px-6 py-6 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        {/* ヘッダー（グラデーション） */}
+        <LinearGradient
+          colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 22 }}
+        >
           <ResponsiveContainer className={isMd ? 'max-w-4xl' : ''}>
             <View className="flex-row items-center">
-              <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>イベント</Text>
-              <Feather name="users" size={22} color="#0ea5e9" style={{ marginLeft: 8 }} />
+              <View
+                className="w-9 h-9 rounded-full items-center justify-center mr-2"
+                style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+              >
+                <Feather name="users" size={18} color="#ffffff" />
+              </View>
+              <Text className="text-2xl font-bold text-white">イベント</Text>
             </View>
-            <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              飲み会イベントを作成・管理
-            </Text>
+            <Text className="text-sm mt-1 text-white/80">飲み会イベントを作成・管理</Text>
           </ResponsiveContainer>
-        </View>
+        </LinearGradient>
 
         <ScrollView
           className="flex-1"
@@ -137,36 +147,57 @@ export default function EventsScreen() {
           <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-4xl' : ''}`}>
           {/* アクションボタン */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <View className="space-y-3">
-              {/* イベント作成 */}
-              <Button
-                title="イベント作成"
-                icon={<Feather name="plus" size={20} color="#ffffff" />}
+            <View className="gap-3">
+              {/* イベント作成（グラデーション） */}
+              <TouchableOpacity
                 onPress={() => router.push('/(tabs)/events/create')}
-                fullWidth
-                size="lg"
-                variant="secondary"
-              />
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Feather name="plus" size={20} color="#ffffff" />
+                  <Text className="text-white font-bold text-base ml-2">イベント作成</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
               {/* 参加方法 */}
               <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Button
-                    title="QRで参加"
-                    icon={<Feather name="camera" size={18} color="#6b7280" />}
-                    onPress={() => router.push('/(tabs)/events/scan')}
-                    fullWidth
-                    variant="outline"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Button
-                    title="コードで参加"
-                    icon={<Feather name="hash" size={18} color="#6b7280" />}
-                    onPress={() => router.push('/(tabs)/events/join-by-code')}
-                    fullWidth
-                    variant="outline"
-                  />
-                </View>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tabs)/events/scan')}
+                  activeOpacity={0.8}
+                  className="flex-1 flex-row items-center justify-center rounded-xl py-3.5"
+                  style={{
+                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                    borderWidth: 1.5,
+                    borderColor: isDark ? '#374151' : '#bae6fd',
+                  }}
+                >
+                  <Feather name="camera" size={18} color="#0ea5e9" />
+                  <Text className="text-primary-500 font-semibold ml-2">QRで参加</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tabs)/events/join-by-code')}
+                  activeOpacity={0.8}
+                  className="flex-1 flex-row items-center justify-center rounded-xl py-3.5"
+                  style={{
+                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                    borderWidth: 1.5,
+                    borderColor: isDark ? '#374151' : '#bae6fd',
+                  }}
+                >
+                  <Feather name="hash" size={18} color="#0ea5e9" />
+                  <Text className="text-primary-500 font-semibold ml-2">コードで参加</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </Animated.View>
@@ -187,7 +218,21 @@ export default function EventsScreen() {
               )}
             </View>
 
-            {events.length > 0 ? (
+            {loading && events.length === 0 ? (
+              <View className="gap-3">
+                {[0, 1, 2].map((i) => (
+                  <Card key={i} variant="elevated">
+                    <View className="flex-row items-center">
+                      <Skeleton width={48} height={48} radius={16} style={{ marginRight: 12 }} />
+                      <View className="flex-1">
+                        <Skeleton width={'70%'} height={16} />
+                        <Skeleton width={'45%'} height={12} style={{ marginTop: 8 }} />
+                      </View>
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            ) : events.length > 0 ? (
               <>
               <ResponsiveGrid minItemWidth={340} gap={12}>
                 {events.map((event, index) => (

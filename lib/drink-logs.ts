@@ -6,6 +6,28 @@ export interface DatabaseError {
   code?: string;
 }
 
+/**
+ * drink_logs テーブルの行（snake_case）を DrinkLog 型（camelCase）に変換
+ */
+function mapDrinkLogRow(item: any): DrinkLog {
+  return {
+    id: item.id,
+    userId: item.user_id,
+    eventId: item.event_id,
+    drinkId: item.drink_id,
+    drinkName: item.drink_name,
+    ml: item.ml,
+    abv: item.abv,
+    pureAlcoholG: item.pure_alcohol_g,
+    count: item.count,
+    memo: item.memo,
+    recordedById: item.recorded_by_id,
+    status: item.status,
+    recordedAt: item.recorded_at,
+    createdAt: item.created_at,
+  };
+}
+
 // =====================================================
 // 飲酒記録関連
 // =====================================================
@@ -49,24 +71,7 @@ export async function createDrinkLog(params: {
       return { drinkLog: null, error: { message: error.message, code: error.code } };
     }
 
-    const drinkLog: DrinkLog = {
-      id: data.id,
-      userId: data.user_id,
-      eventId: data.event_id,
-      drinkId: data.drink_id,
-      drinkName: data.drink_name,
-      ml: data.ml,
-      abv: data.abv,
-      pureAlcoholG: data.pure_alcohol_g,
-      count: data.count,
-      memo: data.memo,
-      recordedById: data.recorded_by_id,
-      status: data.status,
-      recordedAt: data.recorded_at,
-      createdAt: data.created_at,
-    };
-
-    return { drinkLog, error: null };
+    return { drinkLog: mapDrinkLogRow(data), error: null };
   } catch (err: any) {
     return { drinkLog: null, error: { message: err.message || '予期しないエラーが発生しました' } };
   }
@@ -94,20 +99,7 @@ export async function getDrinkLogsByEvent(eventId: string): Promise<{ drinkLogs:
     }
 
     const drinkLogs: DrinkLogWithUser[] = data.map((item: any) => ({
-      id: item.id,
-      userId: item.user_id,
-      eventId: item.event_id,
-      drinkId: item.drink_id,
-      drinkName: item.drink_name,
-      ml: item.ml,
-      abv: item.abv,
-      pureAlcoholG: item.pure_alcohol_g,
-      count: item.count,
-      memo: item.memo,
-      recordedById: item.recorded_by_id,
-      status: item.status,
-      recordedAt: item.recorded_at,
-      createdAt: item.created_at,
+      ...mapDrinkLogRow(item),
       userName: item.profiles?.display_name || '名無し',
       userAvatar: item.profiles?.avatar,
     }));
@@ -141,22 +133,7 @@ export async function getDrinkLogsByUser(
       return { drinkLogs: [], error: { message: error.message, code: error.code } };
     }
 
-    const drinkLogs: DrinkLog[] = data.map((item) => ({
-      id: item.id,
-      userId: item.user_id,
-      eventId: item.event_id,
-      drinkId: item.drink_id,
-      drinkName: item.drink_name,
-      ml: item.ml,
-      abv: item.abv,
-      pureAlcoholG: item.pure_alcohol_g,
-      count: item.count,
-      memo: item.memo,
-      recordedById: item.recorded_by_id,
-      status: item.status,
-      recordedAt: item.recorded_at,
-      createdAt: item.created_at,
-    }));
+    const drinkLogs: DrinkLog[] = data.map(mapDrinkLogRow);
 
     return { drinkLogs, error: null };
   } catch (err: any) {

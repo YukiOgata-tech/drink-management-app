@@ -1,7 +1,17 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/** EAS projectId を解決（env → app.json の extra.eas.projectId の順） */
+function resolveProjectId(): string | undefined {
+  return (
+    process.env.EXPO_PUBLIC_PROJECT_ID ||
+    (Constants.expoConfig?.extra as any)?.eas?.projectId ||
+    (Constants as any)?.easConfig?.projectId
+  );
+}
 
 const NOTIFICATION_PERMISSION_KEY = 'notification_permission_requested';
 const PUSH_TOKEN_KEY = 'push_token';
@@ -18,9 +28,21 @@ Notifications.setNotificationHandler({
 });
 
 /**
+ * 「通知許可を尋ねた」フラグを保存（モーダルの再表示防止）。
+ * 実機/シミュレータや許可の可否に関わらず必ず保存する。
+ */
+export async function markPermissionRequested(): Promise<void> {
+  await AsyncStorage.setItem(NOTIFICATION_PERMISSION_KEY, 'true');
+}
+
+/**
  * プッシュ通知の権限をリクエスト
  */
 export async function requestNotificationPermission(): Promise<boolean> {
+  // 「尋ねた」フラグは端末種別・早期returnに関わらず先に保存する
+  // （シミュレータでフラグが立たずモーダルが再表示される問題を防止）
+  await markPermissionRequested();
+
   if (!Device.isDevice) {
     console.log('Push notifications require a physical device');
     return false;
@@ -33,9 +55,6 @@ export async function requestNotificationPermission(): Promise<boolean> {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-
-  // 権限リクエスト済みフラグを保存
-  await AsyncStorage.setItem(NOTIFICATION_PERMISSION_KEY, 'true');
 
   return finalStatus === 'granted';
 }
@@ -80,9 +99,12 @@ export async function getExpoPushToken(): Promise<string | null> {
       return null;
     }
 
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-    });
+    const projectId = resolveProjectId();
+    if (!projectId) {
+      console.warn('Push token skipped: EAS projectId が見つかりません');
+      return null;
+    }
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
 
     // トークンをローカルに保存
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, token.data);

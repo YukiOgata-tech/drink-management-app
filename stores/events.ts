@@ -11,6 +11,7 @@ interface EventsState {
   totalCount: number; // 総イベント数
   loading: boolean;
   error: string | null;
+  clearError: () => void;
 
   // イベント操作
   fetchEvents: (userId: string, options?: { limit?: number; offset?: number; append?: boolean }) => Promise<void>;
@@ -36,7 +37,8 @@ interface EventsState {
     role: 'host' | 'manager' | 'member';
   }) => Promise<{ error: { message: string; code?: string } | null; errorCode?: string }>;
   updateEventMember: (eventId: string, userId: string, updates: Partial<EventMember>) => Promise<void>;
-  leaveEvent: (eventId: string, userId: string) => Promise<void>;
+  leaveEvent: (eventId: string) => Promise<{ result: EventsAPI.LeaveEventResult | null; error: { message: string } | null }>;
+  joinEvent: (eventId: string) => Promise<{ result: EventsAPI.JoinEventResult | null; error: { message: string } | null }>;
 
   // ローカル取得
   getEventById: (id: string) => Event | undefined;
@@ -49,6 +51,8 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   totalCount: 0,
   loading: false,
   error: null,
+
+  clearError: () => set({ error: null }),
 
   // =====================================================
   // イベント操作
@@ -79,12 +83,12 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     }
   },
 
+  // 単発取得は一覧の loading フラグを共有しない（詳細/招待画面は各自ローカルでローディング管理）
   fetchEventById: async (eventId: string) => {
-    set({ loading: true, error: null });
     const { event, error } = await EventsAPI.getEventById(eventId);
 
     if (error) {
-      set({ loading: false, error: error.message });
+      set({ error: error.message });
       return null;
     }
 
@@ -99,22 +103,20 @@ export const useEventsStore = create<EventsState>((set, get) => ({
         newEvents.push(event);
       }
 
-      return { events: newEvents, loading: false };
+      return { events: newEvents };
     });
 
     return event;
   },
 
   fetchEventByInviteCode: async (inviteCode: string) => {
-    set({ loading: true, error: null });
     const { event, error } = await EventsAPI.getEventByInviteCode(inviteCode);
 
     if (error) {
-      set({ loading: false, error: error.message });
+      set({ error: error.message });
       return null;
     }
 
-    set({ loading: false });
     return event;
   },
 
@@ -233,16 +235,38 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     await get().fetchEventMembers(eventId);
   },
 
-  leaveEvent: async (eventId: string, userId: string) => {
-    const { error } = await EventsAPI.leaveEvent(eventId, userId);
+  leaveEvent: async (eventId: string) => {
+    const { result, error } = await EventsAPI.leaveEvent(eventId);
 
     if (error) {
       set({ error: error.message });
-      return;
+      return { result: null, error: { message: error.message } };
     }
 
-    // メンバーリストを再取得
+    // メンバー・イベントを最新化（所有権移譲・終了が反映される）
     await get().fetchEventMembers(eventId);
+    await get().fetchEventById(eventId);
+
+    return { result, error: null };
+  },
+
+  joinEvent: async (eventId: string) => {
+    const { result, error } = await EventsAPI.joinEvent(eventId);
+
+    if (error) {
+      set({ error: error.message });
+      return { result: null, error: { message: error.message } };
+    }
+
+    // 参加成功時はメンバー・イベントを最新化
+    if (result === 'JOINED' || result === 'REJOINED') {
+      await get().fetchEventMembers(eventId);
+      if (!get().events.find((e) => e.id === eventId)) {
+        await get().fetchEventById(eventId);
+      }
+    }
+
+    return { result, error: null };
   },
 
   // =====================================================

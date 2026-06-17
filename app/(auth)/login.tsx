@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { ResponsiveFormContainer } from '@/components/ui/ResponsiveContainer';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -114,7 +115,7 @@ export default function LoginScreen() {
           </View>
 
           {/* フォーム */}
-          <View className="space-y-4">
+          <View className="gap-4">
             <View>
               <Text className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 メールアドレス
@@ -159,6 +160,16 @@ export default function LoginScreen() {
               fullWidth
             />
           </View>
+
+          {/* 区切り */}
+          <View className="flex-row items-center my-6">
+            <View className={`flex-1 h-px ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} />
+            <Text className={`mx-3 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>または</Text>
+            <View className={`flex-1 h-px ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`} />
+          </View>
+
+          {/* Googleでログイン */}
+          <GoogleSignInButton label="Googleでログイン" />
 
           {/* アカウント作成へのリンク */}
           <View className="mt-8 items-center pb-8">

@@ -6,6 +6,25 @@ export interface DatabaseError {
   code?: string;
 }
 
+/**
+ * events テーブルの行（snake_case）を Event 型（camelCase）に変換
+ */
+function mapEventRow(item: any): Event {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    recordingRule: item.recording_rule,
+    requiredApprovals: item.required_approvals,
+    inviteCode: item.invite_code,
+    hostId: item.host_id,
+    startedAt: item.started_at,
+    endedAt: item.ended_at,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
 // =====================================================
 // イベント関連
 // =====================================================
@@ -39,28 +58,7 @@ export async function createEvent(params: {
       return { event: null, error: { message: 'イベントの作成に失敗しました（データが返されませんでした）' } };
     }
 
-    // デバッグ: RPC関数から返されたデータを確認
-    console.log('createEvent RPC response:', JSON.stringify(data, null, 2));
-
-    if (!data.invite_code) {
-      console.warn('Warning: invite_code is missing from RPC response');
-    }
-
-    const event: Event = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      recordingRule: data.recording_rule,
-      requiredApprovals: data.required_approvals,
-      inviteCode: data.invite_code,
-      hostId: data.host_id,
-      startedAt: data.started_at,
-      endedAt: data.ended_at,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-
-    return { event, error: null };
+    return { event: mapEventRow(data), error: null };
   } catch (err: any) {
     return { event: null, error: { message: err.message || '予期しないエラーが発生しました' } };
   }
@@ -77,7 +75,7 @@ export async function getEvents(
     // まず総件数を取得
     const { count, error: countError } = await supabase
       .from('events')
-      .select(`*, event_members!inner(user_id)`, { count: 'exact', head: true })
+      .select(`id, event_members!inner(user_id)`, { count: 'exact', head: true })
       .eq('event_members.user_id', userId);
 
     if (countError) {
@@ -108,19 +106,7 @@ export async function getEvents(
       return { events: [], totalCount: 0, error: { message: error.message, code: error.code } };
     }
 
-    const events: Event[] = data.map((item) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      recordingRule: item.recording_rule,
-      requiredApprovals: item.required_approvals,
-      inviteCode: item.invite_code,
-      hostId: item.host_id,
-      startedAt: item.started_at,
-      endedAt: item.ended_at,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-    }));
+    const events: Event[] = data.map(mapEventRow);
 
     return { events, totalCount: count || 0, error: null };
   } catch (err: any) {
@@ -143,21 +129,7 @@ export async function getEventById(eventId: string): Promise<{ event: Event | nu
       return { event: null, error: { message: error.message, code: error.code } };
     }
 
-    const event: Event = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      recordingRule: data.recording_rule,
-      requiredApprovals: data.required_approvals,
-      inviteCode: data.invite_code,
-      hostId: data.host_id,
-      startedAt: data.started_at,
-      endedAt: data.ended_at,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-
-    return { event, error: null };
+    return { event: mapEventRow(data), error: null };
   } catch (err: any) {
     return { event: null, error: { message: err.message || '予期しないエラーが発生しました' } };
   }
@@ -178,21 +150,7 @@ export async function getEventByInviteCode(inviteCode: string): Promise<{ event:
       return { event: null, error: { message: error.message, code: error.code } };
     }
 
-    const event: Event = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      recordingRule: data.recording_rule,
-      requiredApprovals: data.required_approvals,
-      inviteCode: data.invite_code,
-      hostId: data.host_id,
-      startedAt: data.started_at,
-      endedAt: data.ended_at,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-
-    return { event, error: null };
+    return { event: mapEventRow(data), error: null };
   } catch (err: any) {
     return { event: null, error: { message: err.message || '予期しないエラーが発生しました' } };
   }
@@ -269,6 +227,7 @@ export async function isEventMember(
       .select('user_id')
       .eq('event_id', eventId)
       .eq('user_id', userId)
+      .is('left_at', null) // アクティブ参加のみ（離脱済みは再参加可能とみなす）
       .maybeSingle();
 
     if (error) {
@@ -391,6 +350,32 @@ export async function addEventMember(params: {
   }
 }
 
+export type JoinEventResult =
+  | 'JOINED'
+  | 'REJOINED'
+  | 'ALREADY_MEMBER'
+  | 'EVENT_NOT_FOUND'
+  | 'EVENT_ALREADY_ENDED'
+  | 'NOT_AUTHENTICATED';
+
+/**
+ * イベントに参加（join_event RPC）。
+ * 存在/終了チェック・再参加（離脱後）・重複をサーバー側で原子的に処理する。
+ */
+export async function joinEvent(
+  eventId: string
+): Promise<{ result: JoinEventResult | null; error: DatabaseError | null }> {
+  try {
+    const { data, error } = await supabase.rpc('join_event', { p_event_id: eventId });
+    if (error) {
+      return { result: null, error: { message: error.message, code: error.code } };
+    }
+    return { result: data as JoinEventResult, error: null };
+  } catch (err: any) {
+    return { result: null, error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
+}
+
 /**
  * イベントメンバー一覧を取得（プロフィール情報付き）
  */
@@ -481,9 +466,28 @@ export async function removeEventMember(
   }
 }
 
+export type LeaveEventResult =
+  | 'LEFT'
+  | 'LEFT_HOST_TRANSFERRED'
+  | 'LEFT_EVENT_ENDED'
+  | 'NOT_MEMBER'
+  | 'EVENT_NOT_FOUND'
+  | 'NOT_AUTHENTICATED';
+
 /**
- * イベントから離脱
+ * イベントから離脱（leave_event RPC）。
+ * ホスト離脱時は所有権を次の参加者へ移譲し、残りがいなければイベントを終了する。
  */
-export async function leaveEvent(eventId: string, userId: string): Promise<{ error: DatabaseError | null }> {
-  return updateEventMember(eventId, userId, { leftAt: new Date().toISOString() });
+export async function leaveEvent(
+  eventId: string
+): Promise<{ result: LeaveEventResult | null; error: DatabaseError | null }> {
+  try {
+    const { data, error } = await supabase.rpc('leave_event', { p_event_id: eventId });
+    if (error) {
+      return { result: null, error: { message: error.message, code: error.code } };
+    }
+    return { result: data as LeaveEventResult, error: null };
+  } catch (err: any) {
+    return { result: null, error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
 }

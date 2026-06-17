@@ -4,12 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LEGAL_VERSIONS } from '@/types';
 import { ResponsiveContainer } from '@/components/ui';
-import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 
 export default function PrivacyPolicyScreen() {
-  const colorScheme = useThemeStore((state) => state.colorScheme);
-  const isDark = colorScheme === 'dark';
+  // 法的ページは長文の可読性を優先し、ライト固定（ダークモードでも明色表示）
+  const isDark = false;
   const { isMd } = useResponsive();
 
   return (
@@ -33,7 +32,7 @@ export default function PrivacyPolicyScreen() {
         }}
       >
         <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
-        <View className="space-y-6 pb-8">
+        <View className="gap-y-6 pb-8">
           {/* バージョン情報 */}
           <View className="bg-gray-100 rounded-lg p-3">
             <Text className="text-sm text-gray-600">
@@ -56,7 +55,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-base text-gray-800 leading-7 mb-3">
               本アプリは、以下の情報を収集することがあります。
             </Text>
-            <View className="ml-4 space-y-2">
+            <View className="ml-4 gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 1. <Text className="font-semibold">アカウント情報</Text>{'\n'}
                 メールアドレス、表示名、パスワード（暗号化して保存）
@@ -88,7 +87,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-base text-gray-800 leading-7 mb-3">
               収集した情報は、以下の目的に利用します。
             </Text>
-            <View className="ml-4 space-y-1">
+            <View className="ml-4 gap-y-1">
               <Text className="text-base text-gray-800 leading-7">
                 1. 本アプリのサービス提供およびその改善
               </Text>
@@ -115,7 +114,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第3条（情報の保存場所）
             </Text>
-            <View className="space-y-3">
+            <View className="gap-y-3">
               <Text className="text-base text-gray-800 leading-7">
                 <Text className="font-semibold">1. クラウドサーバー</Text>{'\n'}
                 アカウント情報、飲酒記録、イベント情報は、Supabase（米国所在のクラウドサービス）のサーバーに保存されます。データは暗号化して送受信されます。
@@ -135,7 +134,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-base text-gray-800 leading-7 mb-3">
               本アプリは、以下の場合を除き、収集した個人情報を第三者に提供することはありません。
             </Text>
-            <View className="ml-4 space-y-1">
+            <View className="ml-4 gap-y-1">
               <Text className="text-base text-gray-800 leading-7">
                 1. 利用者本人の同意がある場合
               </Text>
@@ -156,7 +155,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-lg font-bold text-gray-900 mb-3">
               第5条（情報の保存期間）
             </Text>
-            <View className="space-y-2">
+            <View className="gap-y-2">
               <Text className="text-base text-gray-800 leading-7">
                 • アカウント情報：アカウント削除まで
               </Text>
@@ -180,7 +179,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-base text-gray-800 leading-7 mb-3">
               利用者は、自己の個人情報について以下の権利を有します。
             </Text>
-            <View className="ml-4 space-y-1">
+            <View className="ml-4 gap-y-1">
               <Text className="text-base text-gray-800 leading-7">
                 1. <Text className="font-semibold">アクセス権</Text>：保存されている自己の情報の開示を求める権利
               </Text>
@@ -207,7 +206,7 @@ export default function PrivacyPolicyScreen() {
             <Text className="text-base text-gray-800 leading-7">
               本アプリは、個人情報の漏洩、滅失、毀損を防止するため、以下のセキュリティ対策を実施しています。
             </Text>
-            <View className="ml-4 space-y-1 mt-2">
+            <View className="ml-4 gap-y-1 mt-2">
               <Text className="text-base text-gray-800 leading-7">
                 • SSL/TLS暗号化通信の使用
               </Text>

@@ -210,7 +210,7 @@ export default function CreateEventScreen() {
               <Text className="text-lg font-bold text-gray-900 mb-3">
                 記録ルール
               </Text>
-              <View className="space-y-3 mb-6">
+              <View className="gap-y-3 mb-6">
                 {recordingRules.map((rule) => (
                   <TouchableOpacity
                     key={rule.id}

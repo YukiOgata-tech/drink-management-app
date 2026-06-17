@@ -153,7 +153,7 @@ export default function ApprovalsScreen() {
         >
           <ResponsiveContainer className={isMd ? 'max-w-2xl w-full' : 'w-full'}>
           {drinkLogs.length > 0 ? (
-            <View className="space-y-3">
+            <View className="gap-y-3">
               {drinkLogs.map((log, index) => {
                 const logApprovals = approvals.get(log.id) || [];
                 const canApprove = log.userId !== user.id;

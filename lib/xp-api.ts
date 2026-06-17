@@ -39,6 +39,81 @@ export async function fetchUserXP(userId: string): Promise<{
   }
 }
 
+export interface EventXPClaim {
+  baseXP: number;
+  participantBonus: number;
+  rankingBonus: number;
+  drinkLogsXP: number;
+  totalXP: number;
+  participantCount: number;
+  drinkCount: number;
+  rank: number | null;
+  leveledUp: boolean;
+  newLevel: number | null;
+  debtPaid: number;
+}
+
+/**
+ * イベント完了XPの受領記録を取得（サーバー側で付与済みの内訳）。
+ * 離脱メンバーなど付与対象外なら null を返す。結果モーダル表示に使用。
+ */
+export async function fetchEventXPClaim(
+  userId: string,
+  eventId: string
+): Promise<{ claim: EventXPClaim | null; error: { message: string } | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('event_xp_claims')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      return { claim: null, error: { message: error.message } };
+    }
+    if (!data) {
+      return { claim: null, error: null };
+    }
+
+    return {
+      claim: {
+        baseXP: data.base_xp,
+        participantBonus: data.participant_bonus,
+        rankingBonus: data.ranking_bonus,
+        drinkLogsXP: data.drink_logs_xp,
+        totalXP: data.total_xp,
+        participantCount: data.participant_count,
+        drinkCount: data.drink_count,
+        rank: data.rank,
+        leveledUp: data.leveled_up,
+        newLevel: data.new_level,
+        debtPaid: data.debt_paid,
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    return { claim: null, error: { message: err.message || '予期しないエラーが発生しました' } };
+  }
+}
+
+/**
+ * ユーザーが完了XPを受領済みのイベントID一覧を取得。
+ * 終了バナーを「付与対象（在籍者）」のイベントだけに出すために使用。
+ */
+export async function fetchClaimedEventIds(userId: string): Promise<Set<string>> {
+  try {
+    const { data, error } = await supabase
+      .from('event_xp_claims')
+      .select('event_id')
+      .eq('user_id', userId);
+    if (error || !data) return new Set();
+    return new Set(data.map((r: any) => r.event_id as string));
+  } catch {
+    return new Set();
+  }
+}
+
 /**
  * ユーザーにXPを付与（借金XPがあれば相殺）
  * @param userId ユーザーID

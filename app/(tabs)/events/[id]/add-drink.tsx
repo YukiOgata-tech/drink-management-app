@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { DrinkCategory, DefaultDrink } from '@/types';
-import { calculatePureAlcohol } from '@/lib/products';
+import { DefaultDrink } from '@/types';
 import { Feather } from '@expo/vector-icons';
 import { Button, Card, Input, ResponsiveContainer } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
@@ -21,29 +20,18 @@ import { useDrinksStore } from '@/stores/drinks';
 import { useSyncStore } from '@/stores/sync';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
-import * as DrinkLogsAPI from '@/lib/drink-logs';
-import { addPendingEventDrinkLog } from '@/lib/storage/eventDrinkLogs';
+import { initialDrinkLogStatus, persistEventDrinkLog } from '@/lib/event-recording';
 import { hasRecordedToday } from '@/lib/personal-logs-api';
 import { XP_VALUES } from '@/lib/xp';
 import { SyncStatusBanner } from '@/components/SyncStatusBanner';
+import { useBarcodeScanStore } from '@/stores/barcodeScan';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-// バーコードスキャンから渡される商品情報
-type BarcodeProduct = {
-  id: string;
-  name: string;
-  brand?: string;
-  category: DrinkCategory;
-  ml: number;
-  abv: number;
-  pureAlcoholG: number;
-  emoji: string;
-  barcode: string;
-};
-
 export default function AddDrinkScreen() {
-  const { id, barcodeProduct } = useLocalSearchParams<{ id: string; barcodeProduct?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const pendingBarcodeProduct = useBarcodeScanStore((s) => s.pendingProduct);
+  const consumePendingProduct = useBarcodeScanStore((s) => s.consumePendingProduct);
   const user = useUserStore((state) => state.user);
   const isGuest = useUserStore((state) => state.isGuest);
   const addXP = useUserStore((state) => state.addXP);
@@ -70,28 +58,25 @@ export default function AddDrinkScreen() {
     }
   }, [user]);
 
-  // バーコードスキャンからの商品を処理
+  // バーコードスキャン結果をストアから受け取って選択
   useEffect(() => {
-    if (barcodeProduct) {
-      try {
-        const product: BarcodeProduct = JSON.parse(barcodeProduct);
-        // バーコード商品をDefaultDrink形式に変換して選択
-        const drinkInfo: DefaultDrink = {
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          ml: product.ml,
-          abv: product.abv,
-          pureAlcoholG: product.pureAlcoholG,
-          emoji: product.emoji,
-        };
-        setSelectedDrink(drinkInfo);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (e) {
-        console.error('Failed to parse barcode product:', e);
-      }
-    }
-  }, [barcodeProduct]);
+    if (!pendingBarcodeProduct) return;
+    const product = consumePendingProduct();
+    if (!product) return;
+
+    // バーコード商品をDefaultDrink形式に変換して選択
+    const drinkInfo: DefaultDrink = {
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      ml: product.ml,
+      abv: product.abv,
+      pureAlcoholG: product.pureAlcoholG,
+      emoji: product.emoji,
+    };
+    setSelectedDrink(drinkInfo);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [pendingBarcodeProduct, consumePendingProduct]);
 
   if (!user || !event) {
     router.back();
@@ -150,62 +135,35 @@ export default function AddDrinkScreen() {
       count,
       memo: memo.trim() || undefined,
       recordedById: user.id,
-      status: (event.recordingRule === 'consensus' ? 'pending' : 'approved') as 'pending' | 'approved',
+      status: initialDrinkLogStatus(event.recordingRule),
     };
 
-    // オフラインの場合はローカルキューに保存
-    if (!isOnline) {
-      try {
-        await addPendingEventDrinkLog({
-          localId: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          ...drinkLogData,
-          recordedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        });
-
-        await refreshPendingCounts();
-        setIsSubmitting(false);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          'オフライン保存',
-          '記録をローカルに保存しました。オンラインに戻った時に自動的に同期されます。',
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-        return;
-      } catch (err) {
-        setIsSubmitting(false);
-        Alert.alert('エラー', 'ローカル保存に失敗しました');
-        return;
-      }
-    }
-
-    // オンラインの場合は直接Supabaseに保存
-    const { drinkLog, error } = await DrinkLogsAPI.createDrinkLog(drinkLogData);
-
+    // 永続化（オフライン/オンライン/フォールバックを集約）
+    const { outcome, error } = await persistEventDrinkLog(drinkLogData, { isOnline });
     setIsSubmitting(false);
 
-    if (error) {
-      // APIエラーの場合もオフラインキューに保存
-      try {
-        await addPendingEventDrinkLog({
-          localId: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          ...drinkLogData,
-          recordedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        });
+    // 失敗（キュー保存も不可）
+    if (!outcome) {
+      Alert.alert('エラー', error?.message || '記録の追加に失敗しました');
+      return;
+    }
 
-        await refreshPendingCounts();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        Alert.alert(
-          '一時保存',
-          'サーバーに接続できませんでした。記録をローカルに保存しました。後で自動的に同期されます。',
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
-        return;
-      } catch (saveErr) {
-        Alert.alert('エラー', error.message || '記録の追加に失敗しました');
-        return;
-      }
+    // オフライン保存 / サーバー失敗時のフォールバック保存
+    if (outcome === 'offline' || outcome === 'offline_fallback') {
+      await refreshPendingCounts();
+      Haptics.notificationAsync(
+        outcome === 'offline'
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Warning
+      );
+      Alert.alert(
+        outcome === 'offline' ? 'オフライン保存' : '一時保存',
+        outcome === 'offline'
+          ? '記録をローカルに保存しました。オンラインに戻った時に自動的に同期されます。'
+          : 'サーバーに接続できませんでした。記録をローカルに保存しました。後で自動的に同期されます。',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+      return;
     }
 
     // XP付与（自分の記録の場合のみ、ゲストは除外）
@@ -304,7 +262,7 @@ export default function AddDrinkScreen() {
                   誰の記録ですか？
                 </Text>
                 <Card variant="elevated">
-                  <View className="space-y-2">
+                  <View className="gap-y-2">
                     {members.map((member) => (
                       <TouchableOpacity
                         key={member.userId}
@@ -342,10 +300,7 @@ export default function AddDrinkScreen() {
               className="mb-4"
             >
               <TouchableOpacity
-                onPress={() => router.push({
-                  pathname: '/(tabs)/drinks/barcode-scan',
-                  params: { returnTo: `/(tabs)/events/${id}/add-drink` },
-                })}
+                onPress={() => router.push('/(tabs)/drinks/barcode-scan')}
                 className="rounded-xl py-4 px-5 flex-row items-center"
                 activeOpacity={0.8}
                 style={{
@@ -446,7 +401,7 @@ export default function AddDrinkScreen() {
               <Text className="text-lg font-bold text-gray-900 mb-3">
                 ドリンクを選択
               </Text>
-              <View className="space-y-2 mb-6">
+              <View className="gap-y-2 mb-6">
                 {filteredDrinks.map((drink) => (
                   <TouchableOpacity
                     key={drink.id}
