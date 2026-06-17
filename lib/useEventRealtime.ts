@@ -11,6 +11,10 @@ export type EventRealtimeStatus =
   | 'live' // 購読中
   | 'capped'; // 上限超過のため手動更新モード
 
+export interface CheersPayload {
+  from?: string;
+}
+
 /**
  * イベント詳細画面用のリアルタイム購読フック。
  *
@@ -18,18 +22,24 @@ export type EventRealtimeStatus =
  * - 購読前に count_active_events() で開催中イベント数を確認し、上限超過時は購読せず
  *   'capped' を返す（= 従量課金を避け、手動更新へフォールバック）。
  * - drink_logs（status更新含む）の変更を検知して onChange を呼ぶ。
+ * - 「乾杯」broadcast を同一チャンネルに相乗りさせ、接続数を増やさない。
+ *   onCheers で受信、sendCheers で送信（broadcast.self=true で送信者にも届く）。
  */
 export function useEventRealtime(params: {
   eventId: string;
   enabled: boolean;
   onChange: () => void;
-}): EventRealtimeStatus {
-  const { eventId, enabled, onChange } = params;
+  onCheers?: (payload: CheersPayload) => void;
+}): { status: EventRealtimeStatus; sendCheers: (from?: string) => void } {
+  const { eventId, enabled, onChange, onCheers } = params;
   const [status, setStatus] = useState<EventRealtimeStatus>('disabled');
 
-  // onChange の最新参照を保持（依存配列に入れず再購読を防ぐ）
+  // 最新参照を保持（依存配列に入れず再購読を防ぐ）
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onCheersRef = useRef(onCheers);
+  onCheersRef.current = onCheers;
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!enabled || !eventId) {
@@ -52,7 +62,7 @@ export function useEventRealtime(params: {
       }
 
       channel = supabase
-        .channel(`event-drink-logs-${eventId}`)
+        .channel(`event-${eventId}`, { config: { broadcast: { self: true } } })
         .on(
           'postgres_changes',
           {
@@ -63,6 +73,9 @@ export function useEventRealtime(params: {
           },
           () => onChangeRef.current()
         )
+        .on('broadcast', { event: 'cheers' }, ({ payload }) => {
+          onCheersRef.current?.((payload ?? {}) as CheersPayload);
+        })
         .subscribe((channelStatus) => {
           if (cancelled) return;
           if (channelStatus === 'SUBSCRIBED') setStatus('live');
@@ -70,13 +83,19 @@ export function useEventRealtime(params: {
             setStatus('capped'); // 接続失敗時も手動更新へ寄せる
           }
         });
+      channelRef.current = channel;
     })();
 
     return () => {
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [eventId, enabled]);
 
-  return status;
+  const sendCheers = (from?: string) => {
+    channelRef.current?.send({ type: 'broadcast', event: 'cheers', payload: { from } });
+  };
+
+  return { status, sendCheers };
 }

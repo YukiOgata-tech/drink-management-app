@@ -6,3 +6,4 @@ export { RankingCard } from './RankingCard';
 export { EndedEventBanner } from './EndedEventBanner';
 export { RealtimeCappedNotice } from './RealtimeCappedNotice';
 export { EventErrorBanner } from './EventErrorBanner';
+export { CheersOverlay } from './CheersOverlay';

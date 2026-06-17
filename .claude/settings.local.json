@@ -48,7 +48,8 @@
       "mcp__plugin_supabase_supabase__apply_migration",
       "Bash(sort -t: -k2 -rn)",
       "Bash(cd *)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(node -e \"const m=require\\('expo-image-manipulator'\\); console.log\\(Object.keys\\(m\\)\\);\")"
     ]
   }
 }

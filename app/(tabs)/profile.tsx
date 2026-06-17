@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -145,8 +146,7 @@ export default function ProfileScreen() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
+      quality: 1,
     });
 
     if (result.canceled || !result.assets[0]) return;
@@ -161,11 +161,13 @@ export default function ProfileScreen() {
 
     setIsUploadingAvatar(true);
     try {
-      const { url, error } = await uploadAvatar(
-        user.id,
-        result.assets[0].base64 ?? '',
-        result.assets[0].mimeType
+      // 規定サイズ(最大512px)へリサイズ＋JPEG圧縮してからアップロード（容量削減）
+      const manipulated = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
+      const { url, error } = await uploadAvatar(user.id, manipulated.base64 ?? '', 'image/jpeg');
       if (error || !url) {
         Alert.alert('エラー', error?.message || 'アップロードに失敗しました');
         return;

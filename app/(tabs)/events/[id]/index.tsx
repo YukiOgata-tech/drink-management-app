@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button, Card, ResponsiveContainer, LoadingScreen } from '@/components/ui';
-import { DrinkLogCard, ParticipantRow, RealtimeCappedNotice, EventErrorBanner } from '@/components/event';
+import { DrinkLogCard, ParticipantRow, RealtimeCappedNotice, EventErrorBanner, CheersOverlay } from '@/components/event';
+import { LinearGradient } from 'expo-linear-gradient';
+import { getCheersUsed, incrementCheersUsed, MAX_CHEERS_PER_EVENT } from '@/lib/storage/cheers';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
@@ -72,6 +74,12 @@ export default function EventDetailScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [xpClaimChecked, setXpClaimChecked] = useState(false);
+
+  // 乾杯（Realtime broadcast / 1人3回まで・5秒クールダウン）
+  const [cheerSignal, setCheerSignal] = useState(0);
+  const [cheerFrom, setCheerFrom] = useState<string | undefined>(undefined);
+  const [cheersRemaining, setCheersRemaining] = useState(MAX_CHEERS_PER_EVENT);
+  const cheerCooldownRef = useRef(0);
 
   const event = getEventById(id);
   const members = getEventMembers(id);
@@ -152,11 +160,35 @@ export default function EventDetailScreen() {
   };
 
   // リアルタイム購読（開催中イベントのみ。上限超過時は 'capped' で手動更新へ）
-  const realtimeStatus = useEventRealtime({
+  const { status: realtimeStatus, sendCheers } = useEventRealtime({
     eventId: id,
     enabled: !!event && !event.endedAt,
     onChange: loadDrinkLogs,
+    onCheers: ({ from }) => {
+      setCheerFrom(from);
+      setCheerSignal((s) => s + 1);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
   });
+
+  // 自分の乾杯残回数を読み込み（開催中イベントのみ）
+  useEffect(() => {
+    if (!user || isGuest || !event || event.endedAt) return;
+    getCheersUsed(id, user.id).then((used) =>
+      setCheersRemaining(Math.max(0, MAX_CHEERS_PER_EVENT - used))
+    );
+  }, [user?.id, isGuest, event?.id, event?.endedAt]);
+
+  const handleCheer = async () => {
+    if (!user || cheersRemaining <= 0) return;
+    const now = Date.now();
+    if (now - cheerCooldownRef.current < 5000) return; // 5秒クールダウン
+    cheerCooldownRef.current = now;
+    const used = await incrementCheersUsed(id, user.id);
+    setCheersRemaining(Math.max(0, MAX_CHEERS_PER_EVENT - used));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    sendCheers(user.displayName);
+  };
 
   const handleEndEvent = () => {
     Alert.alert(
@@ -809,6 +841,55 @@ export default function EventDetailScreen() {
           </Pressable>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* 乾杯ボタン（開催中・認証ユーザーのみ / 1人3回・5秒クールダウン） */}
+      {isActive && !isGuest && (
+        <View style={{ position: 'absolute', right: 20, bottom: 28 }} pointerEvents="box-none">
+          <TouchableOpacity
+            onPress={handleCheer}
+            disabled={cheersRemaining <= 0}
+            activeOpacity={0.85}
+            style={{ opacity: cheersRemaining <= 0 ? 0.5 : 1 }}
+          >
+            <LinearGradient
+              colors={['#0ea5e9', '#8b5cf6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 18,
+                paddingVertical: 12,
+                borderRadius: 999,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+            >
+              <Text style={{ fontSize: 18, marginRight: 6 }}>🍻</Text>
+              <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 15 }}>乾杯</Text>
+              <View
+                style={{
+                  marginLeft: 8,
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                  borderRadius: 999,
+                  paddingHorizontal: 7,
+                  paddingVertical: 1,
+                }}
+              >
+                <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '700' }}>
+                  残{cheersRemaining}
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 乾杯の演出（後で Lottie に差し替え予定） */}
+      <CheersOverlay signal={cheerSignal} from={cheerFrom} />
     </SafeAreaView>
   );
 }
