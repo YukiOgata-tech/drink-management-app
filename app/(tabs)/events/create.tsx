@@ -7,13 +7,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  TextInput,
-  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, ResponsiveContainer } from '@/components/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Button, Card, Input, ResponsiveContainer, LoadingOverlay } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
@@ -79,32 +78,32 @@ export default function CreateEventScreen() {
     );
   }
 
-  const recordingRules: Array<{
+  const recordingRules: {
     id: EventRecordingRule;
     name: string;
     description: string;
-    icon: keyof typeof Feather.glyphMap;
+    emoji: string;
     iconColor: string;
-  }> = [
+  }[] = [
     {
       id: 'self',
-      name: 'Self（各自入力）',
+      name: '各自入力',
       description: '各参加者が自分の記録を自由に追加できます',
-      icon: 'edit-3',
+      emoji: '✏️',
       iconColor: '#0ea5e9',
     },
     {
       id: 'host_only',
-      name: 'Host Only（ホスト管理）',
+      name: 'ホスト管理',
       description: 'ホストやマネージャーのみが記録を管理します',
-      icon: 'shield',
+      emoji: '👑',
       iconColor: '#f59e0b',
     },
     {
       id: 'consensus',
-      name: 'Consensus（同意制）',
+      name: '同意制',
       description: '記録には他の参加者の承認が必要です',
-      icon: 'users',
+      emoji: '🤝',
       iconColor: '#8b5cf6',
     },
   ];
@@ -151,23 +150,28 @@ export default function CreateEventScreen() {
 
   return (
     <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <LoadingOverlay visible={isLoading} message="イベントを作成中..." />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         <View className="flex-1">
-          {/* ヘッダー */}
-          <View className={`px-6 py-4 border-b flex-row items-center justify-between ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text className="text-primary-600 font-semibold text-base">
-                キャンセル
-              </Text>
-            </TouchableOpacity>
-            <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              イベント作成
-            </Text>
-            <View style={{ width: 80 }} />
-          </View>
+          {/* ヘッダー（グラデーション・エンタメ感） */}
+          <LinearGradient
+            colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 22 }}
+          >
+            <View className="flex-row items-center justify-between">
+              <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+                <Text className="text-white/90 font-semibold text-base">キャンセル</Text>
+              </TouchableOpacity>
+              <View style={{ width: 60 }} />
+            </View>
+            <Text className="text-white text-2xl font-extrabold mt-3">🎉 イベントを作成</Text>
+            <Text className="text-white/80 text-sm mt-1">みんなで飲み会を盛り上げよう！</Text>
+          </LinearGradient>
 
           <ScrollView
             className="flex-1"
@@ -176,101 +180,102 @@ export default function CreateEventScreen() {
             <ResponsiveContainer className={`px-6 py-6 ${isMd ? 'max-w-2xl' : ''}`}>
             {/* 基本情報 */}
             <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-              <Text style={styles.sectionHeader}>基本情報</Text>
-              <View style={styles.inputGroup}>
-                <View style={styles.inputRow}>
-                  <Text style={styles.inputLabel}>イベント名</Text>
-                  <TextInput
-                    style={styles.inputField}
-                    value={title}
-                    onChangeText={setTitle}
-                    placeholder="例: 新年会"
-                    placeholderTextColor="#9ca3af"
-                  />
-                </View>
-                <View style={styles.separator} />
-                <View style={[styles.inputRow, styles.inputRowMultiline]}>
-                  <Text style={styles.inputLabel}>説明</Text>
-                  <TextInput
-                    style={[styles.inputField, styles.inputFieldMultiline]}
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="任意"
-                    placeholderTextColor="#9ca3af"
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                  />
-                </View>
-              </View>
+              <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                基本情報
+              </Text>
+              <Input
+                label="イベント名"
+                value={title}
+                onChangeText={setTitle}
+                placeholder="例: 新年会 🎍"
+                icon={<Feather name="tag" size={20} color="#9ca3af" />}
+              />
+              <Input
+                label="説明（任意）"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="どんな会？ ひとことメモ"
+                multiline
+                numberOfLines={3}
+                icon={<Feather name="align-left" size={20} color="#9ca3af" />}
+              />
             </Animated.View>
 
             {/* 記録ルール */}
             <Animated.View entering={FadeInDown.delay(200).duration(600)}>
-              <Text className="text-lg font-bold text-gray-900 mb-3">
+              <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 記録ルール
               </Text>
               <View className="gap-y-3 mb-6">
-                {recordingRules.map((rule) => (
-                  <TouchableOpacity
-                    key={rule.id}
-                    onPress={() => {
-                      setRecordingRule(rule.id);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                  >
-                    <Card
-                      variant="outlined"
-                      className={
-                        recordingRule === rule.id
-                          ? 'border-2 border-secondary-500 bg-secondary-50'
-                          : ''
-                      }
+                {recordingRules.map((rule) => {
+                  const selected = recordingRule === rule.id;
+                  return (
+                    <TouchableOpacity
+                      key={rule.id}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setRecordingRule(rule.id);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
                     >
-                      <View className="flex-row items-start">
-                        <View className="w-12 h-12 bg-gray-100 rounded-full items-center justify-center mr-3">
-                          <Feather name={rule.icon} size={24} color={rule.iconColor} />
-                        </View>
-                        <View className="flex-1">
-                          <View className="flex-row items-center justify-between mb-1">
-                            <Text className="text-base font-semibold text-gray-900">
-                              {rule.name}
-                            </Text>
-                            {recordingRule === rule.id && (
-                              <Feather name="check-circle" size={24} color="#f97316" />
-                            )}
+                      <Card
+                        variant="outlined"
+                        style={
+                          selected
+                            ? { borderColor: rule.iconColor, borderWidth: 2 }
+                            : undefined
+                        }
+                      >
+                        <View className="flex-row items-center">
+                          <View
+                            style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 24,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: 12,
+                              backgroundColor: rule.iconColor + (isDark ? '33' : '22'),
+                            }}
+                          >
+                            <Text style={{ fontSize: 24 }}>{rule.emoji}</Text>
                           </View>
-                          <Text className="text-sm text-gray-600">
-                            {rule.description}
-                          </Text>
+                          <View className="flex-1">
+                            <View className="flex-row items-center justify-between mb-0.5">
+                              <Text className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {rule.name}
+                              </Text>
+                              {selected && (
+                                <Feather name="check-circle" size={22} color={rule.iconColor} />
+                              )}
+                            </View>
+                            <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {rule.description}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                    </Card>
-                  </TouchableOpacity>
-                ))}
+                      </Card>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </Animated.View>
 
             {/* 承認設定（consensusモードの場合のみ表示） */}
             {recordingRule === 'consensus' && (
               <Animated.View entering={FadeInDown.delay(300).duration(600)}>
-                <Text style={styles.sectionHeader}>承認設定</Text>
-                <View style={styles.inputGroup}>
-                  <View style={styles.inputRow}>
-                    <Text style={styles.inputLabel}>必要な承認数</Text>
-                    <TextInput
-                      style={[styles.inputField, { textAlign: 'right' }]}
-                      value={requiredApprovals}
-                      onChangeText={setRequiredApprovals}
-                      placeholder="1"
-                      placeholderTextColor="#9ca3af"
-                      keyboardType="numeric"
-                    />
-                  </View>
-                </View>
-                <Text style={styles.sectionFooter}>
-                  記録が承認されるために必要な承認数を設定します。デフォルトは1人です。
+                <Text className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  承認設定
                 </Text>
+                <Input
+                  label="必要な承認数"
+                  value={requiredApprovals}
+                  onChangeText={setRequiredApprovals}
+                  placeholder="1"
+                  keyboardType="numeric"
+                  icon={<Feather name="check-circle" size={20} color="#9ca3af" />}
+                  helperText="記録が確定するために必要な承認人数（既定: 1人）"
+                />
               </Animated.View>
             )}
             </ResponsiveContainer>
@@ -279,13 +284,30 @@ export default function CreateEventScreen() {
           {/* 作成ボタン */}
           <View className={`px-6 py-4 pb-24 border-t ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} ${isMd ? 'items-center' : ''}`}>
             <ResponsiveContainer className={isMd ? 'max-w-2xl' : ''}>
-              <Button
-                title={isLoading ? '作成中...' : 'イベントを作成'}
+              <TouchableOpacity
                 onPress={handleCreate}
                 disabled={!title.trim() || isLoading}
-                fullWidth
-                variant="secondary"
-              />
+                activeOpacity={0.85}
+                style={{ opacity: !title.trim() || isLoading ? 0.5 : 1 }}
+              >
+                <LinearGradient
+                  colors={['#0ea5e9', '#6366f1', '#8b5cf6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Feather name="plus" size={20} color="#ffffff" />
+                  <Text className="text-white font-bold text-base ml-2">
+                    {isLoading ? '作成中...' : 'イベントを作成'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </ResponsiveContainer>
           </View>
         </View>
@@ -293,65 +315,3 @@ export default function CreateEventScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginLeft: 16,
-  },
-  sectionFooter: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 8,
-    marginLeft: 16,
-    marginRight: 16,
-    lineHeight: 18,
-  },
-  inputGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minHeight: 44,
-  },
-  inputRowMultiline: {
-    alignItems: 'flex-start',
-    paddingVertical: 12,
-  },
-  inputLabel: {
-    fontSize: 17,
-    color: '#111827',
-    width: 100,
-  },
-  inputField: {
-    flex: 1,
-    fontSize: 17,
-    color: '#111827',
-    padding: 0,
-  },
-  inputFieldMultiline: {
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#e5e7eb',
-    marginLeft: 16,
-  },
-});

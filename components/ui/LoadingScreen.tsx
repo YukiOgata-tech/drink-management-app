@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/theme';
-import { AppLoader } from './AppLoader';
+import { LottieLoader } from './LottieLoader';
 
 interface LoadingScreenProps {
   message?: string;
@@ -24,7 +24,7 @@ export function LoadingScreen({ message = '読み込み中...', fullScreen = tru
           backgroundColor: isDark ? 'rgba(31,41,55,0.6)' : 'rgba(255,255,255,0.8)',
         }}
       >
-        <AppLoader size={64} />
+        <LottieLoader size={120} />
         {!!message && (
           <Text className={`mt-3 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
             {message}

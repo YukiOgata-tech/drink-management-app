@@ -3,7 +3,7 @@ import { View, Text, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Button, Card, ResponsiveContainer } from '@/components/ui';
+import { Button, Card, ResponsiveContainer, LoadingOverlay } from '@/components/ui';
 import { useUserStore } from '@/stores/user';
 import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
@@ -309,6 +309,7 @@ export default function JoinEventScreen() {
 
   return (
     <SafeAreaView edges={['top']} className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <LoadingOverlay visible={joining} message="参加中..." />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{

@@ -6,4 +6,6 @@ export { ProgressRing } from './ProgressRing';
 export { Skeleton } from './Skeleton';
 export { LoadingScreen } from './LoadingScreen';
 export { AppLoader } from './AppLoader';
+export { LottieLoader } from './LottieLoader';
+export { LoadingOverlay } from './LoadingOverlay';
 export { ResponsiveContainer, ResponsiveGrid, ResponsiveFormContainer } from './ResponsiveContainer';

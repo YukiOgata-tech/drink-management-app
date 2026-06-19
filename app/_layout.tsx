@@ -5,8 +5,11 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
+import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
 import '@/global.css';
+
+import { AnimatedSplash } from '@/components/AnimatedSplash';
 
 import { useUserStore } from '@/stores/user';
 import { useSyncStore } from '@/stores/sync';
@@ -20,6 +23,9 @@ import {
   addNotificationResponseListener,
 } from '@/lib/notifications';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
+
+// Lottieアニメスプラッシュを見せるため、ネイティブsplashの自動非表示を抑止
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export const unstable_settings = {
   initialRouteName: 'consent',
@@ -59,6 +65,16 @@ export default function RootLayout() {
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const initializeTheme = useThemeStore((state) => state.initializeTheme);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
+
+  // 念のためのフォールバック（アニメ完了イベントが来なくても一定時間で解除）
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSplashDone(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 4500);
+    return () => clearTimeout(t);
+  }, []);
 
   // テーマの初期化
   useEffect(() => {
@@ -199,6 +215,7 @@ export default function RootLayout() {
             onAllow={handleAllowNotification}
             onSkip={handleSkipNotification}
           />
+          {!splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
         </View>
       </SafeAreaProvider>
     </ThemeProvider>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Button, Card, ResponsiveContainer, LoadingScreen } from '@/components/ui';
 import { DrinkLogCard, ParticipantRow, RealtimeCappedNotice, EventErrorBanner, CheersOverlay } from '@/components/event';
@@ -23,6 +23,7 @@ import { useEventsStore } from '@/stores/events';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 import { useEventRealtime } from '@/lib/useEventRealtime';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import * as DrinkLogsAPI from '@/lib/drink-logs';
 import { DrinkLogWithUser } from '@/types';
 import { fetchEventXPClaim } from '@/lib/xp-api';
@@ -63,6 +64,10 @@ export default function EventDetailScreen() {
   const colorScheme = useThemeStore((state) => state.colorScheme);
   const isDark = colorScheme === 'dark';
   const { isMd } = useResponsive();
+  // タブバー高さ（ネストStack配下でcontextが無い場合はセーフエリアから推定し例外を回避）
+  const insets = useSafeAreaInsets();
+  const tabBarHeightCtx = useContext(BottomTabBarHeightContext);
+  const tabBarHeight = tabBarHeightCtx ?? insets.bottom + 49;
 
   const [drinkLogs, setDrinkLogs] = useState<DrinkLogWithUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -844,7 +849,7 @@ export default function EventDetailScreen() {
 
       {/* 乾杯ボタン（開催中・認証ユーザーのみ / 1人3回・5秒クールダウン） */}
       {isActive && !isGuest && (
-        <View style={{ position: 'absolute', right: 20, bottom: 28 }} pointerEvents="box-none">
+        <View style={{ position: 'absolute', right: 20, bottom: tabBarHeight + 16 }} pointerEvents="box-none">
           <TouchableOpacity
             onPress={handleCheer}
             disabled={cheersRemaining <= 0}

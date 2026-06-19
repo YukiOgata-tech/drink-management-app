@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Button, Card, ResponsiveContainer, ResponsiveGrid } from '@/components/ui';
+import { PersonalLogCard } from '@/components/PersonalLogCard';
 import { useUserStore } from '@/stores/user';
 import { useDrinksStore } from '@/stores/drinks';
 import { usePersonalLogsStore } from '@/stores/personalLogs';
@@ -21,7 +22,6 @@ import { useDevStore } from '@/stores/dev';
 import { useThemeStore } from '@/stores/theme';
 import { useResponsive } from '@/lib/responsive';
 import { PersonalDrinkLog } from '@/types';
-import { XP_VALUES } from '@/lib/xp';
 import Animated, { FadeInDown, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
@@ -133,8 +133,16 @@ export default function DrinksScreen() {
     ? drinkLogs.filter((log) => log.userId === user.id).slice(0, 20)
     : [];
 
-  // 個人記録を取得（最新20件）
-  const recentPersonalLogs = personalLogs.slice(0, 20);
+  // 個人記録を取得（直近5日分のみ表示。それ以前は一覧ページへ）
+  const RECENT_DAYS = 5;
+  const recentCutoff = dayjs().subtract(RECENT_DAYS, 'day').startOf('day');
+  const recentPersonalLogs = personalLogs.filter((log) =>
+    dayjs(log.recordedAt).isAfter(recentCutoff)
+  );
+  // 直近5日より前の記録が存在するか（「すべての記録を見る」表示判定）
+  const hasOlderLogs = personalLogs.some(
+    (log) => !dayjs(log.recordedAt).isAfter(recentCutoff)
+  );
 
   const categories = [
     { id: 'beer', name: 'ビール', emoji: '🍺' },
@@ -197,7 +205,7 @@ export default function DrinksScreen() {
         <ScrollView
           ref={scrollViewRef}
           className="flex-1"
-          contentContainerStyle={{ alignItems: isMd ? 'center' : undefined }}
+          contentContainerStyle={{ paddingBottom: 100, alignItems: isMd ? 'center' : undefined }}
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
@@ -223,120 +231,72 @@ export default function DrinksScreen() {
               </Text>
               {recentPersonalLogs.length > 0 && (
                 <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  長押しで削除
+                  直近{RECENT_DAYS}日 • 長押しで削除
                 </Text>
               )}
             </View>
             {recentPersonalLogs.length > 0 ? (
-              <ResponsiveGrid minItemWidth={320} gap={12}>
-                {recentPersonalLogs.map((log, index) => {
-                  const getCategoryEmoji = (category: string) => {
-                    const emojiMap: Record<string, string> = {
-                      beer: '🍺',
-                      highball: '🥃',
-                      chuhai_sour: '🍋',
-                      shochu: '🥃',
-                      sake: '🍶',
-                      wine: '🍷',
-                      cocktail: '🍹',
-                      other: '🍸',
-                    };
-                    return emojiMap[category] || '🍺';
-                  };
-
-                  // この記録がその日の最初の記録かどうかを判定
-                  const logDate = dayjs(log.recordedAt).format('YYYY-MM-DD');
-                  const isFirstOfDay = !personalLogs.some(
-                    (otherLog) =>
-                      otherLog.id !== log.id &&
-                      !otherLog.deletedAt &&
-                      dayjs(otherLog.recordedAt).format('YYYY-MM-DD') === logDate &&
-                      dayjs(otherLog.recordedAt).isBefore(dayjs(log.recordedAt))
-                  );
-
-                  // XP計算（同期済みの記録のみXPが付与されている、純アルコール量分）
-                  const earnedXP = log.syncStatus === 'synced' || log.supabaseId
-                    ? Math.floor(log.pureAlcoholG * log.count) + (isFirstOfDay ? XP_VALUES.DAILY_BONUS : 0)
-                    : 0;
-
-                  // 削除済みかどうか
-                  const isDeleted = !!log.deletedAt;
-
-                  return (
+              <>
+                <ResponsiveGrid minItemWidth={320} gap={12}>
+                  {recentPersonalLogs.map((log, index) => (
                     <Animated.View
                       key={log.id}
                       entering={FadeInDown.delay(250 + index * 30).duration(600)}
                       exiting={FadeOut.duration(300)}
                     >
-                      <TouchableOpacity
-                        onLongPress={() => !isDeleted && handleDeleteLog(log)}
-                        delayLongPress={500}
-                        activeOpacity={isDeleted ? 1 : 0.7}
-                        disabled={isDeleted}
-                      >
-                        <Card variant="outlined" className={isDeleted ? 'opacity-50' : ''}>
-                          <View className="flex-row items-center">
-                            <Text className={`text-3xl mr-3 ${isDeleted ? 'opacity-50' : ''}`}>
-                              {getCategoryEmoji(log.drinkCategory)}
-                            </Text>
-                            <View className="flex-1">
-                              <View className="flex-row items-center">
-                                <Text className={`text-base font-semibold ${isDeleted ? 'text-gray-400 line-through' : (isDark ? 'text-white' : 'text-gray-900')}`}>
-                                  {log.drinkName}
-                                </Text>
-                                {isDeleted && (
-                                  <View className="ml-2 bg-red-100 px-2 py-0.5 rounded">
-                                    <Text className="text-xs text-red-600 font-semibold">
-                                      削除済み
-                                    </Text>
-                                  </View>
-                                )}
-                                {!isDeleted && log.isCustomDrink && (
-                                  <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded">
-                                    <Text className="text-xs text-amber-700 font-semibold">
-                                      カスタム
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-                              <Text className={`text-sm mt-1 ${isDeleted ? 'text-gray-300' : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>
-                                {log.count}杯 • {log.pureAlcoholG.toFixed(1)}g
-                              </Text>
-                              <Text className={`text-xs mt-1 ${isDeleted ? 'text-gray-300' : (isDark ? 'text-gray-500' : 'text-gray-400')}`}>
-                                {dayjs(log.recordedAt).format('M月D日 HH:mm')}
-                              </Text>
-                              {!isDeleted && log.memo && (
-                                <View className="flex-row items-center mt-1">
-                                  <Feather name="message-circle" size={10} color="#4b5563" style={{ marginRight: 4 }} />
-                                  <Text className="text-xs text-gray-600">
-                                    {log.memo}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            {!isDeleted && (
-                              <View className="items-end">
-                                {earnedXP > 0 && (
-                                  <View className="bg-green-100 px-2 py-1 rounded-lg mb-1">
-                                    <Text className="text-xs font-semibold text-green-600">
-                                      +{earnedXP} XP
-                                    </Text>
-                                  </View>
-                                )}
-                                <View className="bg-blue-100 px-2 py-1 rounded-lg">
-                                  <Text className="text-xs font-semibold text-blue-600">
-                                    個人
-                                  </Text>
-                                </View>
-                              </View>
-                            )}
-                          </View>
-                        </Card>
-                      </TouchableOpacity>
+                      <PersonalLogCard
+                        log={log}
+                        allLogs={personalLogs}
+                        onLongPress={handleDeleteLog}
+                      />
                     </Animated.View>
-                  );
-                })}
-              </ResponsiveGrid>
+                  ))}
+                </ResponsiveGrid>
+
+                {/* それ以前の記録は一覧ページへ */}
+                {hasOlderLogs && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push('/(tabs)/drinks/all');
+                    }}
+                    activeOpacity={0.8}
+                    className={`mt-3 rounded-xl py-3.5 flex-row items-center justify-center border ${
+                      isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <Feather name="archive" size={18} color="#0ea5e9" style={{ marginRight: 8 }} />
+                    <Text className="text-primary-600 font-semibold text-base">
+                      すべての記録を見る
+                    </Text>
+                    <Feather name="chevron-right" size={18} color="#0ea5e9" style={{ marginLeft: 4 }} />
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : hasOlderLogs ? (
+              // 直近5日は記録なし。ただし過去の記録は存在する
+              <Card variant="outlined">
+                <View className="items-center py-10">
+                  <View className={`w-16 h-16 rounded-full items-center justify-center mb-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <Feather name="clock" size={30} color={isDark ? '#6b7280' : '#9ca3af'} />
+                  </View>
+                  <Text className={`mb-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    直近{RECENT_DAYS}日間の記録はありません
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push('/(tabs)/drinks/all');
+                    }}
+                    activeOpacity={0.8}
+                    className="flex-row items-center"
+                  >
+                    <Feather name="archive" size={18} color="#0ea5e9" style={{ marginRight: 6 }} />
+                    <Text className="text-primary-600 font-semibold text-base">すべての記録を見る</Text>
+                    <Feather name="chevron-right" size={18} color="#0ea5e9" style={{ marginLeft: 2 }} />
+                  </TouchableOpacity>
+                </View>
+              </Card>
             ) : (
               <Card variant="outlined">
                 <View className="items-center py-12">
